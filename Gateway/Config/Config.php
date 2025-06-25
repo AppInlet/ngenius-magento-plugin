@@ -130,7 +130,7 @@ class Config extends \Magento\Payment\Gateway\Config\Config
      *
      * @return string
      */
-    public function getOutletReferenceId(int $storeId = null): string
+    public function getOutletReferenceId(?int $storeId = null): string
     {
         return $this->getValue(Config::OUTLET_REF, $storeId);
     }
@@ -226,7 +226,7 @@ class Config extends \Magento\Payment\Gateway\Config\Config
      *
      * @return string
      */
-    public function getOutletReference2Id(int $storeId = null): string
+    public function getOutletReference2Id(?int $storeId = null): string
     {
         return $this->getValue(self::OUTLET_REF_2, $storeId);
     }
@@ -391,7 +391,7 @@ class Config extends \Magento\Payment\Gateway\Config\Config
      *
      * @return string
      */
-    public function getOrderVoidURL(string $orderRef, string $paymentRef, int $storeId = null): string
+    public function getOrderVoidURL(string $orderRef, string $paymentRef, ?int $storeId = null): string
     {
         $endpoint = sprintf(
             $this->getValue(Config::VOID_ENDPOINT, $storeId),
@@ -412,7 +412,7 @@ class Config extends \Magento\Payment\Gateway\Config\Config
      *
      * @return string
      */
-    public function getHttpVersion(int $storeId = null): string
+    public function getHttpVersion(?int $storeId = null): string
     {
         return $this->getValue(Config::HTTP_VERSION, $storeId);
     }
@@ -424,7 +424,7 @@ class Config extends \Magento\Payment\Gateway\Config\Config
      *
      * @return string|null
      */
-    public function getCustomSuccessOrderState(int $storeId = null): ?string
+    public function getCustomSuccessOrderState(?int $storeId = null): ?string
     {
         return $this->getValue(Config::SUCCESS_ORDER_STATE, $storeId);
     }
@@ -436,7 +436,7 @@ class Config extends \Magento\Payment\Gateway\Config\Config
      *
      * @return string|null
      */
-    public function getCustomSuccessOrderStatus(int $storeId = null): ?string
+    public function getCustomSuccessOrderStatus(?int $storeId = null): ?string
     {
         return $this->getValue(Config::SUCCESS_ORDER_STATUS, $storeId);
     }
@@ -448,7 +448,7 @@ class Config extends \Magento\Payment\Gateway\Config\Config
      *
      * @return string|null
      */
-    public function getCustomFailedOrderState(int $storeId = null): ?string
+    public function getCustomFailedOrderState(?int $storeId = null): ?string
     {
         return $this->getValue(Config::FAILED_ORDER_STATE, $storeId);
     }
@@ -460,7 +460,7 @@ class Config extends \Magento\Payment\Gateway\Config\Config
      *
      * @return string|null
      */
-    public function getCustomFailedOrderStatus(int $storeId = null): ?string
+    public function getCustomFailedOrderStatus(?int $storeId = null): ?string
     {
         return $this->getValue(Config::FAILED_ORDER_STATUS, $storeId);
     }
@@ -472,7 +472,7 @@ class Config extends \Magento\Payment\Gateway\Config\Config
      *
      * @return bool|null
      */
-    public function getInvoiceSend(int $storeId = null): ?bool
+    public function getInvoiceSend(?int $storeId = null): ?bool
     {
         return $this->getValue(Config::INVOICE_EMAIL, $storeId);
     }
@@ -484,7 +484,7 @@ class Config extends \Magento\Payment\Gateway\Config\Config
      *
      * @return bool|null
      */
-    public function getEmailSend(int $storeId = null): ?bool
+    public function getEmailSend(?int $storeId = null): ?bool
     {
         return $this->getValue(Config::ORDER_EMAIL, $storeId);
     }
@@ -496,7 +496,7 @@ class Config extends \Magento\Payment\Gateway\Config\Config
      *
      * @return bool|null
      */
-    public function getIsNgeniusRefundStatus(int $storeId = null): ?bool
+    public function getIsNgeniusRefundStatus(?int $storeId = null): ?bool
     {
         return $this->getValue(Config::REFUND_STATUS, $storeId);
     }
