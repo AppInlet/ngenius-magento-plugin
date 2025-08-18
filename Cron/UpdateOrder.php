@@ -30,6 +30,7 @@ use NetworkInternational\NGenius\Gateway\Request\TokenRequest;
 use NetworkInternational\NGenius\Model\CoreFactory;
 use NetworkInternational\NGenius\Service\OrderStatusService;
 use Psr\Log\LoggerInterface;
+use NetworkInternational\NGenius\Service\NgeniusApiService;
 
 /**
  * Cron Driver
@@ -50,6 +51,8 @@ class UpdateOrder
      * @var LoggerInterface
      */
     private LoggerInterface $logger;
+    private ManagerInterface $messageManager;
+    private NgeniusApiService $ngeniusApiService;
 
     /**
      * @param ManagerInterface $messageManager
@@ -77,6 +80,7 @@ class UpdateOrder
      * @param OrderRepositoryInterface $orderRepository
      * @param State $state
      * @param OrderStatusService $orderStatusService
+     * @param NgeniusApiService $ngeniusApiService
      */
     public function __construct(
         ManagerInterface $messageManager,
@@ -103,7 +107,8 @@ class UpdateOrder
         Builder $_transactionBuilder,
         OrderRepositoryInterface $orderRepository,
         State $state,
-        OrderStatusService $orderStatusService
+        OrderStatusService $orderStatusService,
+        NgeniusApiService $ngeniusApiService,
     ) {
         $this->ngeniusPaymentTools = new Payment(
             $messageManager,
@@ -129,10 +134,13 @@ class UpdateOrder
             $serializer,
             $_transactionBuilder,
             $orderRepository,
-            $orderStatusService
+            $orderStatusService,
+            $ngeniusApiService,
         );
         $this->state               = $state;
         $this->logger              = $logger;
+        $this->messageManager = $messageManager;
+        $this->ngeniusApiService = $ngeniusApiService;
     }
 
     /**
