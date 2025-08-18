@@ -1,5 +1,11 @@
 # Changelog
 
+## [[1.3.0]](https://github.com/network-international/ngenius-magento-plugin/releases/tag/1.3.0)
+
+### Added
+
+- Integrated the N-Genius PayByLink feature, allowing customers to pay via a link sent to their email or phone.
+
 ## [[1.2.0]](https://github.com/network-international/ngenius-magento-plugin/releases/tag/1.2.0)
 
 ### Added
