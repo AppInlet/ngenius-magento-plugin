@@ -14,6 +14,7 @@ use Magento\Sales\Model\OrderFactory;
 use Magento\Store\Model\StoreManagerInterface;
 use NetworkInternational\NGenius\Gateway\Config\Config;
 use NetworkInternational\NGenius\Model\CoreFactory;
+use NetworkInternational\NGenius\Model\ResourceModel\Core\CollectionFactory;
 
 /*
  * Class TransactionVoid
@@ -21,6 +22,10 @@ use NetworkInternational\NGenius\Model\CoreFactory;
 
 class TransactionVoid extends PaymentTransaction
 {
+    /**
+     * @var CollectionFactory $collectionFactory Factory for creating Core collection instances.
+     */
+    private CollectionFactory $collectionFactory;
     /**
      * @var OrderFactory
      */
@@ -40,6 +45,7 @@ class TransactionVoid extends PaymentTransaction
      * @param StoreManagerInterface $storeManager
      * @param CoreFactory $coreFactory
      * @param OrderRepositoryInterface $orderRepository
+     * @param CollectionFactory $collectionFactory
      */
     public function __construct(
         Logger $logger,
@@ -50,10 +56,12 @@ class TransactionVoid extends PaymentTransaction
         Config $config,
         StoreManagerInterface $storeManager,
         CoreFactory $coreFactory,
-        OrderRepositoryInterface $orderRepository
+        OrderRepositoryInterface $orderRepository,
+        CollectionFactory $collectionFactory,
     ) {
         $this->orderFactory       = $orderFactory;
         $this->transactionBuilder = $transactionBuilder;
+        $this->collectionFactory  = $collectionFactory;
         parent::__construct(
             $logger,
             $checkoutSession,
@@ -92,9 +100,8 @@ class TransactionVoid extends PaymentTransaction
         if (isset($response['errors']) && is_array($response['errors'])) {
             return [];
         } else {
-            $collection = $this->coreFactory->create()
-                                            ->getCollection()
-                                            ->addFieldToFilter('reference', $response['orderReference']);
+            $collection = $this->collectionFactory->create()
+                ->addFieldToFilter('reference', $response['orderReference']);
 
             $orderItem = $collection->getFirstItem();
 
@@ -113,9 +120,9 @@ class TransactionVoid extends PaymentTransaction
             $payment->setAmountAuthorized(0.00);
 
             $transaction = $trans->setPayment($payment)
-                                 ->setOrder($order)
-                                 ->setFailSafe(true)
-                                 ->build(TransactionInterface::TYPE_VOID);
+                ->setOrder($order)
+                ->setFailSafe(true)
+                ->build(TransactionInterface::TYPE_VOID);
 
             $message = __('The authorised amount has been voided');
             $payment->addTransactionCommentsToOrder($transaction, $message);
@@ -124,7 +131,7 @@ class TransactionVoid extends PaymentTransaction
             $order->setStatus('ngenius_auth_reversed');
             $order->setState(Order::STATE_CLOSED);
             $order->setShouldCloseParentTransaction(true);
-            $order->save();
+            $this->orderRepository->save($order);
         }
 
         return [];

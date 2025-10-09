@@ -17,7 +17,7 @@ class OutletCurrencies implements ArrayInterface
      *
      * @return array
      */
-    public function toOptionArray()
+    public function toOptionArray(): array
     {
         $currencies = [
             'AED',

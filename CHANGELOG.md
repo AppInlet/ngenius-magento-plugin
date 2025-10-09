@@ -1,5 +1,14 @@
 # Changelog
 
+## [[1.4.0]](https://github.com/network-international/ngenius-magento-plugin/releases/tag/1.4.0)
+
+### Added
+
+- Compatibility update for Magento 2.4.7 and PHP 8.2.
+- Onboarding Link in Plugin Interface: Added an accessible link within the Magento plugin interface that redirects
+  merchants to the onboarding site for e-commerce payment solutions. The link is prominently placed in the plugin's
+  settings panel, ensuring easy access for merchants to initiate the onboarding process.
+
 ## [[1.3.0]](https://github.com/network-international/ngenius-magento-plugin/releases/tag/1.3.0)
 
 ### Added

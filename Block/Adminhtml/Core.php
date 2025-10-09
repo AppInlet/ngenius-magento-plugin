@@ -2,26 +2,62 @@
 
 namespace NetworkInternational\NGenius\Block\Adminhtml;
 
-use Magento\Backend\Block\Widget\Grid\Container;
+use Magento\Backend\Block\Template;
+use Magento\Backend\Block\Template\Context;
+use NetworkInternational\NGenius\Model\CoreFactory;
+use Magento\Framework\App\ResourceConnection;
 
 /**
  * Class Core
  * The core driver for the NGenius Report
  */
-class Core extends Container
+class Core extends Template
 {
-    // phpcs:disable PSR2.Methods.MethodDeclaration.Underscore
-    // phpcs:disable PSR2.Classes.PropertyDeclaration.Underscore
+    /**
+     * @var CoreFactory
+     */
+    protected CoreFactory $coreFactory;
 
     /**
-     * Core constructor
+     * @var ResourceConnection
      */
-    protected function _construct()
+    protected ResourceConnection $resourceConnection;
+
+    /**
+     * @param Context $context
+     * @param CoreFactory $coreFactory
+     * @param ResourceConnection $resourceConnection
+     * @param array $data
+     */
+    public function __construct(
+        Context $context,
+        CoreFactory $coreFactory,
+        ResourceConnection $resourceConnection,
+        array $data = []
+    ) {
+        $this->coreFactory        = $coreFactory;
+        $this->resourceConnection = $resourceConnection;
+        parent::__construct($context, $data);
+        $this->setTemplate('NetworkInternational_NGenius::core/report.phtml');
+    }
+
+    /**
+     * Get N-Genius orders data
+     */
+    public function getOrdersData(): array
     {
-        $this->_controller = 'adminhtml_core_report';
-        $this->_blockGroup = 'NetworkInternational_NGenius';
-        $this->_headerText = __('N-Genius Orders');
-        parent::_construct();
-        $this->buttonList->remove('add');
+        $connection = $this->resourceConnection->getConnection();
+        $tableName  = $connection->getTableName('ngenius_networkinternational_sales_order');
+
+        $select = $connection->select()->from($tableName);
+        return $connection->fetchAll($select);
+    }
+
+    /**
+     * Get header text
+     */
+    public function getHeaderText(): string
+    {
+        return __('N-Genius Orders');
     }
 }

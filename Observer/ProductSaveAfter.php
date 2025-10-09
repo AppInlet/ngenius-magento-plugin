@@ -18,11 +18,11 @@ class ProductSaveAfter implements ObserverInterface
     /**
      * @var ObjectManagerInterface
      */
-    protected $_objectManager;
+    protected ObjectManagerInterface $objectManager;
     /**
      * @var ProductQty
      */
-    protected $productQty;
+    protected ProductQty $productQty;
     /**
      * @var StockManagementInterface
      */
@@ -57,7 +57,7 @@ class ProductSaveAfter implements ObserverInterface
         StockRegistryInterface $stockRegistry,
         \Magento\Catalog\Model\Product $productCollection
     ) {
-        $this->_objectManager    = $objectManager;
+        $this->objectManager     = $objectManager;
         $this->checkoutSession   = $checkoutSession;
         $this->productQty        = $productQty;
         $this->stockManagement   = $stockManagement;
@@ -72,7 +72,7 @@ class ProductSaveAfter implements ObserverInterface
      *
      * @return void
      */
-    public function execute(Observer $observer)
+    public function execute(Observer $observer): void
     {
         $lastRealOrder = $this->checkoutSession->getLastRealOrder();
         if ($lastRealOrder->getPayment() && $lastRealOrder->getData('state') === 'new' && ($lastRealOrder->getData(
@@ -88,7 +88,5 @@ class ProductSaveAfter implements ObserverInterface
                 $this->stockManagement->backItemQty($product_id, $qty, "NULL");
             }
         }
-
-        return true;
     }
 }

@@ -12,7 +12,7 @@ class Report extends \Magento\Backend\App\Action
     /**
      * @var PageFactory
      */
-    protected $resultPageFactory = false;
+    protected PageFactory $resultPageFactory;
 
     /**
      * Report constructor.
@@ -33,7 +33,7 @@ class Report extends \Magento\Backend\App\Action
      *
      * @return PageFactory
      */
-    public function execute()
+    public function execute(): PageFactory
     {
         $resultPage = $this->resultPageFactory->create();
         $resultPage->getConfig()->getTitle()->prepend((__('N-Genius Report')));

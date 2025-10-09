@@ -20,7 +20,7 @@ class ResponseValidator extends AbstractValidator
      *
      * @return ResultInterface
      */
-    public function validate(array $validationSubject)
+    public function validate(array $validationSubject): ResultInterface
     {
         $response = SubjectReader::readResponse($validationSubject);
 

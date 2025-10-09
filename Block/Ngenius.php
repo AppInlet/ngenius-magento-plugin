@@ -19,33 +19,30 @@ use Ngenius\NgeniusCommon\Formatter\ValueFormatter;
  */
 class Ngenius extends ConfigurableInfo
 {
-    // phpcs:disable PSR2.Methods.MethodDeclaration.Underscore
-    // phpcs:disable PSR2.Classes.PropertyDeclaration.Underscore
-
     /**
      * @var Session
      */
-    protected $checkoutSession;
+    protected Session $checkoutSession;
 
     /**
      * @var OrderInterface
      */
-    protected $orderFactory;
+    protected OrderInterface $orderFactory;
 
     /**
      * @var TokenRequest
      */
-    protected $tokenRequest;
+    protected TokenRequest $tokenRequest;
 
     /**
      * @var Config
      */
-    protected $config;
+    protected Config $config;
 
     /**
      * @var ScopeConfigInterface
      */
-    protected $_scopeConfig;
+    protected ScopeConfigInterface $scopeConfig;
 
     /**
      * @var array|string[]
@@ -73,7 +70,7 @@ class Ngenius extends ConfigurableInfo
         $this->checkoutSession    = $checkoutSession;
         $this->orderFactory       = $orderInterface;
         $this->tokenRequest       = $tokenRequest;
-        $this->_scopeConfig       = $scopeConfig;
+        $this->scopeConfig        = $scopeConfig;
         $this->paymentRequest     = $paymentRequest;
         $this->paymentTransaction = $paymentTransaction;
     }

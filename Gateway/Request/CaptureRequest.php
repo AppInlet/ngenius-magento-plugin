@@ -13,6 +13,7 @@ use NetworkInternational\NGenius\Gateway\Config\Config;
 use NetworkInternational\NGenius\Helper\Version;
 use NetworkInternational\NGenius\Model\CoreFactory;
 use Ngenius\NgeniusCommon\Formatter\ValueFormatter;
+use Magento\Framework\App\ResourceConnection;
 
 /**
  * Request builder for payment captures
@@ -26,41 +27,47 @@ class CaptureRequest implements BuilderInterface
     /**
      * @var Config
      */
-    protected $config;
+    protected Config $config;
 
     /**
      * @var TokenRequest
      */
-    protected $tokenRequest;
-
+    protected TokenRequest $tokenRequest;
+    /**
+     * @var ResourceConnection
+     */
+    protected ResourceConnection $resourceConnection;
     /**
      * @var StoreManagerInterface
      */
-    protected $storeManager;
+    protected StoreManagerInterface $storeManager;
 
     /**
      * @var CoreFactory
      */
-    protected $coreFactory;
+    protected CoreFactory $coreFactory;
 
     /**
      * CaptureRequest constructor.
      *
-     * @param Config $config
-     * @param TokenRequest $tokenRequest
-     * @param StoreManagerInterface $storeManager
-     * @param CoreFactory $coreFactory
+     * @param Config $config Configuration instance.
+     * @param TokenRequest $tokenRequest Token request handler.
+     * @param StoreManagerInterface $storeManager Store manager instance.
+     * @param CoreFactory $coreFactory Core factory instance.
+     * @param ResourceConnection $resourceConnection Database resource connection.
      */
     public function __construct(
         Config $config,
         TokenRequest $tokenRequest,
         StoreManagerInterface $storeManager,
-        CoreFactory $coreFactory
+        CoreFactory $coreFactory,
+        ResourceConnection $resourceConnection
     ) {
-        $this->config       = $config;
-        $this->tokenRequest = $tokenRequest;
-        $this->storeManager = $storeManager;
-        $this->coreFactory  = $coreFactory;
+        $this->config             = $config;
+        $this->tokenRequest       = $tokenRequest;
+        $this->storeManager       = $storeManager;
+        $this->coreFactory        = $coreFactory;
+        $this->resourceConnection = $resourceConnection;
     }
 
     /**
@@ -71,7 +78,7 @@ class CaptureRequest implements BuilderInterface
      * @return array
      * @throws CouldNotSaveException|LocalizedException
      */
-    public function build(array $buildSubject)
+    public function build(array $buildSubject): array
     {
         $paymentDO = SubjectReader::readPayment($buildSubject);
         $payment   = $paymentDO->getPayment();
@@ -84,13 +91,22 @@ class CaptureRequest implements BuilderInterface
             throw new LocalizedException(__('No authorization transaction to proceed capture.'));
         }
 
-        $collection = $this->coreFactory->create()
-                                        ->getCollection()
-                                        ->addFieldToFilter('order_id', $order->getOrderIncrementId());
-        $orderItem  = $collection->getFirstItem();
+        $connection = $this->resourceConnection->getConnection();
+        $tableName  = $this->resourceConnection->getTableName('ngenius_networkinternational_sales_order');
+
+        $select = $connection->select()
+            ->from($tableName)
+            ->where('order_id = ?', $order->getOrderIncrementId())
+            ->limit(1);
+
+        $orderData = $connection->fetchRow($select);
+
+        if (!$orderData) {
+            throw new LocalizedException(__('Order item not found.'));
+        }
 
         $formatPrice  = $this->formatPrice(SubjectReader::readAmount($buildSubject));
-        $currencyCode = $orderItem->getCurrency();
+        $currencyCode = $orderData['currency'];
         $amount       = ValueFormatter::floatToIntRepresentation($currencyCode, $formatPrice);
 
         if ($this->config->isComplete($storeId)) {
@@ -109,8 +125,8 @@ class CaptureRequest implements BuilderInterface
                     ],
                     'method' => \Laminas\Http\Request::METHOD_POST,
                     'uri'    => $this->config->getOrderCaptureURL(
-                        $orderItem->getReference(),
-                        $orderItem->getPaymentId(),
+                        $orderData['reference'],
+                        $orderData['payment_id'],
                         $storeId
                     )
                 ]

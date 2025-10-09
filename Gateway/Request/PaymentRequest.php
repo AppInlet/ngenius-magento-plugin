@@ -21,27 +21,27 @@ class PaymentRequest implements BuilderInterface
     /**
      * @var Config
      */
-    protected $config;
+    protected Config $config;
 
     /**
      * @var TokenRequest
      */
-    protected $tokenRequest;
+    protected TokenRequest $tokenRequest;
 
     /**
      * @var StoreManagerInterface
      */
-    protected $storeManager;
+    protected StoreManagerInterface $storeManager;
 
     /**
      * @var Session
      */
-    protected $checkoutSession;
+    protected Session $checkoutSession;
 
     /**
      * @var UrlInterface
      */
-    protected $urlBuilder;
+    protected UrlInterface $urlBuilder;
 
     /**
      * PaymentRequest constructor.
@@ -74,7 +74,7 @@ class PaymentRequest implements BuilderInterface
      * @return array
      * @throws CouldNotSaveException
      */
-    public function build(array $buildSubject)
+    public function build(array $buildSubject): array
     {
         $paymentDO = SubjectReader::readPayment($buildSubject);
         $paymentDO->getPayment()->setIsTransactionPending(true);
@@ -100,9 +100,9 @@ class PaymentRequest implements BuilderInterface
      *
      * @param object $order
      *
-     * @return null
+     * @return void
      */
-    protected function setTableData($order)
+    protected function setTableData($order): void
     {
         $data = [
             'order_id' => $order->getOrderIncrementId(),

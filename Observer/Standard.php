@@ -15,12 +15,12 @@ class Standard implements ObserverInterface
     /**
      * @var Session
      */
-    protected $checkoutSession;
+    protected Session $checkoutSession;
 
     /**
      * @var \Magento\Framework\Message\ManagerInterface
      */
-    protected $messageManager;
+    protected \Magento\Framework\Message\ManagerInterface $messageManager;
 
     /**
      * Standard constructor.
@@ -41,12 +41,12 @@ class Standard implements ObserverInterface
      *
      * @param \Magento\Framework\Event\Observer $observer
      */
-    public function execute(\Magento\Framework\Event\Observer $observer)
+    public function execute(\Magento\Framework\Event\Observer $observer): void
     {
         $redirectionUrl = $this->checkoutSession->getPaymentURL();
         if ($redirectionUrl) {
             $message = 'Go to <a href="' . $redirectionUrl . '" target="_blank">payment page</a> to do the transaction';
-            $this->messageManager->addNotice(__($message));
+            $this->messageManager->addNoticeMessage(__($message));
         }
     }
 }

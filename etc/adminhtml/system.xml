@@ -5,6 +5,16 @@
             <group id="ngeniusonline" translate="label" type="text" sortOrder="50" showInDefault="1" showInWebsite="1"
                    showInStore="1">
                 <label>N-Genius Online by Network</label>
+                <field id="onboarding_link" translate="label comment" type="note" sortOrder="0" showInDefault="1"
+                       showInWebsite="1" showInStore="0">
+                    <label><![CDATA[&nbsp;]]></label>
+                    <comment><![CDATA[
+        Don’t have credentials yet? Click <a href="https://www.network.ae/en/merchant-solutions/ecommerce-payments/plugins?utm_source=Magento&utm_medium=referral&utm_content=link&utm_term=partner-plugins&utm_campaign=magento-partner"
+           target="_blank" rel="noopener noreferrer" style="font-weight:600; font-size:13px; text-decoration:underline;">
+           here
+        </a> to get started with Network International and gain access to N-Genius&trade; payments for Magento.
+    ]]></comment>
+                </field>
                 <field id="active" translate="label" type="select" sortOrder="1" showInDefault="1" showInWebsite="1"
                        showInStore="0">
                     <label>Enabled</label>

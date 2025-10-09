@@ -17,7 +17,6 @@ use Magento\Framework\View\Result\PageFactory;
 use Magento\Sales\Api\OrderRepositoryInterface;
 use Magento\Sales\Model\Order\Email\Sender\InvoiceSender;
 use Magento\Sales\Model\Order\Email\Sender\OrderSender;
-use Magento\Sales\Model\Order\Payment\Transaction\Builder;
 use Magento\Sales\Model\Order\Payment\Transaction\BuilderInterface;
 use Magento\Sales\Model\OrderFactory;
 use Magento\Sales\Model\Service\InvoiceService;
@@ -43,18 +42,30 @@ class UpdateOrder
      * @var Payment
      */
     private Payment $ngeniusPaymentTools;
+
     /**
      * @var State
      */
     private State $state;
+
     /**
      * @var LoggerInterface
      */
     private LoggerInterface $logger;
+
+    /**
+     * @var ManagerInterface
+     */
     private ManagerInterface $messageManager;
+
+    /**
+     * @var NgeniusApiService
+     */
     private NgeniusApiService $ngeniusApiService;
 
     /**
+     * UpdateOrder constructor.
+     *
      * @param ManagerInterface $messageManager
      * @param PageFactory $pageFactory
      * @param RequestInterface $request
@@ -76,7 +87,6 @@ class UpdateOrder
      * @param Session $checkoutSession
      * @param Product $productCollection
      * @param SerializerInterface $serializer
-     * @param Builder $_transactionBuilder
      * @param OrderRepositoryInterface $orderRepository
      * @param State $state
      * @param OrderStatusService $orderStatusService
@@ -104,11 +114,10 @@ class UpdateOrder
         Session $checkoutSession,
         Product $productCollection,
         SerializerInterface $serializer,
-        Builder $_transactionBuilder,
         OrderRepositoryInterface $orderRepository,
         State $state,
         OrderStatusService $orderStatusService,
-        NgeniusApiService $ngeniusApiService,
+        NgeniusApiService $ngeniusApiService
     ) {
         $this->ngeniusPaymentTools = new Payment(
             $messageManager,
@@ -132,24 +141,23 @@ class UpdateOrder
             $checkoutSession,
             $productCollection,
             $serializer,
-            $_transactionBuilder,
             $orderRepository,
             $orderStatusService,
-            $ngeniusApiService,
+            $ngeniusApiService
         );
         $this->state               = $state;
         $this->logger              = $logger;
-        $this->messageManager = $messageManager;
-        $this->ngeniusApiService = $ngeniusApiService;
+        $this->messageManager      = $messageManager;
+        $this->ngeniusApiService   = $ngeniusApiService;
     }
 
     /**
      * Default execute function.
      *
-     * @return null
+     * @return void
      * @throws Exception
      */
-    public function execute()
+    public function execute(): void
     {
         $this->state->emulateAreaCode(
             Area::AREA_FRONTEND,

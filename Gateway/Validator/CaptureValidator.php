@@ -9,6 +9,8 @@ use Magento\Payment\Gateway\Validator\ResultInterfaceFactory;
 use Magento\Sales\Model\Order\Payment\Transaction;
 use Magento\Sales\Model\Order\Payment\Transaction\BuilderInterface;
 use Magento\Sales\Model\OrderFactory;
+use Magento\Sales\Api\Data\TransactionInterface;
+use Magento\Sales\Api\OrderRepositoryInterface;
 
 /**
  * Validate and processes order capture
@@ -18,14 +20,18 @@ use Magento\Sales\Model\OrderFactory;
 class CaptureValidator extends AbstractValidator
 {
     /**
+     * @var OrderRepositoryInterface
+     */
+    protected OrderRepositoryInterface $orderRepository;
+    /**
      * @var BuilderInterface
      */
-    protected $transactionBuilder;
+    protected BuilderInterface $transactionBuilder;
 
     /**
      * @var OrderFactory
      */
-    protected $orderFactory;
+    protected OrderFactory $orderFactory;
 
     /**
      * CaptureValidator constructor.
@@ -33,32 +39,35 @@ class CaptureValidator extends AbstractValidator
      * @param ResultInterfaceFactory $resultFactory
      * @param BuilderInterface $transactionBuilder
      * @param OrderFactory $orderFactory
+     * @param OrderRepositoryInterface $orderRepository
      */
     public function __construct(
         ResultInterfaceFactory $resultFactory,
         BuilderInterface $transactionBuilder,
-        OrderFactory $orderFactory
+        OrderFactory $orderFactory,
+        OrderRepositoryInterface $orderRepository
     ) {
         $this->transactionBuilder = $transactionBuilder;
         $this->orderFactory       = $orderFactory;
+        $this->orderRepository    = $orderRepository;
         parent::__construct($resultFactory);
     }
 
     /**
      * Performs validation of result code
      *
-     * @param array $validationSubject
+     * @param array $validationSubject The validation subject containing response and payment data.
      *
-     * @return ResultInterface
+     * @return ResultInterface The validation result.
      */
-    public function validate(array $validationSubject)
+    public function validate(array $validationSubject): ResultInterface
     {
         $response     = SubjectReader::readResponse($validationSubject);
         $paymentDO    = SubjectReader::readPayment($validationSubject);
         $payment      = $paymentDO->getPayment();
         $orderAdapter = $paymentDO->getOrder();
 
-        $order = $this->orderFactory->create()->load($orderAdapter->getId());
+        $order = $this->orderRepository->get($orderAdapter->getId());
 
         if (!isset($response['result']) && !is_array($response['result'])) {
             return $this->createResult(
@@ -72,23 +81,23 @@ class CaptureValidator extends AbstractValidator
             ];
             $payment->setTransactionId($response['result']['payment_id']);
             $transaction = $this->transactionBuilder->setPayment($payment)
-                                                    ->setOrder($order)
-                                                    ->setTransactionId($response['result']['payment_id'])
-                                                    ->setAdditionalInformation(
-                                                        [Transaction::RAW_DETAILS => (array)$paymentData]
-                                                    )
-                                                    ->setFailSafe(true)
-                                                    ->build(
-                                                        Transaction::TYPE_CAPTURE
-                                                    );
+                ->setOrder($order)
+                ->setTransactionId($response['result']['payment_id'])
+                ->setAdditionalInformation(
+                    [Transaction::RAW_DETAILS => (array)$paymentData]
+                )
+                ->setFailSafe(true)
+                ->build(
+                    TransactionInterface::TYPE_CAPTURE
+                );
             $payment->addTransactionCommentsToOrder($transaction, null);
-            $payment->save();
+            $this->orderRepository->save($order);
             $order->addStatusToHistory(
                 $response['result']['order_status'],
                 'The capture has been processed successfully.',
                 false
             );
-            $order->save();
+            $this->orderRepository->save($order);
 
             return $this->createResult(true, []);
         }

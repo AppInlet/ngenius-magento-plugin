@@ -23,7 +23,7 @@ class CaptureStrategyCommand implements CommandInterface
     /**
      * @var CommandPoolInterface
      */
-    private $commandPool;
+    private CommandPoolInterface $commandPool;
 
     /**
      * Constructor
@@ -39,7 +39,7 @@ class CaptureStrategyCommand implements CommandInterface
     /**
      * @inheritdoc
      */
-    public function execute(array $commandSubject)
+    public function execute(array $commandSubject): void
     {
         $paymentDO = SubjectReader::readPayment($commandSubject);
         $command   = $this->getCommand($paymentDO);
@@ -49,8 +49,6 @@ class CaptureStrategyCommand implements CommandInterface
             $payment = $paymentDO->getPayment();
             $payment->setIsTransactionPending(true);
         }
-
-        return null;
     }
 
     /**
@@ -58,9 +56,9 @@ class CaptureStrategyCommand implements CommandInterface
      *
      * @param PaymentDataObjectInterface $paymentDO
      *
-     * @return string
+     * @return string||null
      */
-    private function getCommand(PaymentDataObjectInterface $paymentDO)
+    private function getCommand(PaymentDataObjectInterface $paymentDO): ?string
     {
         $payment = $paymentDO->getPayment();
         ContextHelper::assertOrderPayment($payment);
@@ -68,5 +66,6 @@ class CaptureStrategyCommand implements CommandInterface
         if ($payment->getAuthorizationTransaction()) {
             return self::CAPTURE;
         }
+        return null;
     }
 }

@@ -41,29 +41,36 @@ class Config
         $this->directoryHelper = $directoryHelper;
     }
 
+    /**
+     * @var int
+     */
+    private int $storeId;
 
     /**
-     * Store ID setter
+     * Set the store ID.
      *
      * @param int $storeId
-     *
-     * @return $this
+     * @return self
      */
-    public function setStoreId($storeId)
+    public function setStoreId(int $storeId): self
     {
-        $this->storeId = (int)$storeId;
+        $this->storeId = $storeId;
 
         return $this;
     }
 
     /**
-     * Method code setter
+     * @var string
+     */
+    private string $methodCode;
+
+    /**
+     * Set the payment method.
      *
      * @param string|MethodInterface $method
-     *
-     * @return $this
+     * @return self
      */
-    public function setMethod($method)
+    public function setMethod(string|MethodInterface $method): self
     {
         if ($method instanceof MethodInterface) {
             $this->methodCode = $method->getCode();
@@ -79,7 +86,7 @@ class Config
      *
      * @return int
      */
-    public function getStoreId()
+    public function getStoreId(): int
     {
         return $this->storeId;
     }
@@ -91,7 +98,7 @@ class Config
      *
      * @return bool
      */
-    public function isCurrencyCodeSupported($code)
+    public function isCurrencyCodeSupported(string $code): bool
     {
         $supported = false;
         $pre       = __METHOD__ . ' : ';
@@ -114,7 +121,7 @@ class Config
      *
      * @return bool
      */
-    public function isMethodAvailable($methodCode = null)
+    public function isMethodAvailable(?string $methodCode = null): bool
     {
         $methodCode = $methodCode ?: $this->methodCode;
 
@@ -152,7 +159,7 @@ class Config
      *
      * @return bool
      */
-    public function isMethodSupportedForCountry($method = null, $countryCode = null)
+    public function isMethodSupportedForCountry(?string $method = null, ?string $countryCode = null): bool
     {
         if ($method === null) {
             $method = $this->getMethodCode();
@@ -170,7 +177,7 @@ class Config
      *
      * @return string
      */
-    public function getMethodCode()
+    public function getMethodCode(): string
     {
         return $this->methodCode;
     }
@@ -180,7 +187,7 @@ class Config
      *
      * @return string|null
      */
-    public function getMerchantCountry()
+    public function getMerchantCountry(): ?string
     {
         return $this->directoryHelper->getDefaultCountry($this->storeId);
     }
@@ -193,7 +200,7 @@ class Config
      * @return array
      * @SuppressWarnings(PHPMD.ExcessiveMethodLength)
      */
-    public function getCountryMethods($countryCode = null)
+    public function getCountryMethods(?string $countryCode = null): array
     {
         $countryMethods = [
             'other' => [
@@ -205,6 +212,20 @@ class Config
             return $countryMethods;
         }
 
-        return isset($countryMethods[$countryCode]) ? $countryMethods[$countryCode] : $countryMethods['other'];
+        return $countryMethods[$countryCode] ?? $countryMethods['other'];
+    }
+
+    /**
+     * Get payment action configuration value
+     *
+     * @return string|null
+     */
+    public function getPaymentAction(): ?string
+    {
+        return $this->scopeConfig->getValue(
+            'payment/' . self::METHOD_CODE . '/payment_action',
+            ScopeInterface::SCOPE_STORE,
+            $this->storeId
+        );
     }
 }

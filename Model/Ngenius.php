@@ -8,7 +8,6 @@ use Magento\Framework\DataObject;
 use Magento\Framework\Encryption\EncryptorInterface;
 use Magento\Framework\Event\ManagerInterface;
 use Magento\Framework\Exception\LocalizedException;
-use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Framework\UrlInterface;
 use Magento\Payment\Block\Form;
 use Magento\Payment\Block\Info;
@@ -20,50 +19,62 @@ use Magento\Sales\Api\OrderRepositoryInterface;
 use Magento\Sales\Model\Order;
 use Magento\Sales\Model\Order\Payment;
 use Magento\Store\Model\ScopeInterface;
-use Magento\Store\Model\Store;
 use Magento\Store\Model\StoreManagerInterface;
 
 class Ngenius implements MethodInterface
 {
+    public const PAYMENT_ACTION_AUTH  = 'authorize';
+    public const PAYMENT_ACTION_SALE  = 'sale';
+    public const PAYMENT_ACTION_ORDER = 'order';
     /**
      * @var StoreManagerInterface
      */
-    private $storeManager;
+    private StoreManagerInterface $storeManager;
 
     /**
      * @var UrlInterface
      */
-    private $urlBuilder;
+    private UrlInterface $urlBuilder;
 
     /**
      * @var EncryptorInterface
      */
-    private $encryptor;
+    private EncryptorInterface $encryptor;
 
     /**
      * @var OrderRepositoryInterface $orderRepository
      */
-    private $orderRepository;
-
+    private OrderRepositoryInterface $orderRepository;
+    /**
+     * @var ScopeConfigInterface
+     */
     private ScopeConfigInterface $scopeConfig;
+    /**
+     * @var InfoInterface
+     */
     private InfoInterface $infoInstance;
     /**
      * @var string
      */
-    private $formBlockType = Form::class;
+    private string $formBlockType = Form::class;
 
     /**
      * @var string
      */
-    private $infoBlockType = Info::class;
+    private string $infoBlockType = Info::class;
 
     /**
      * @var ManagerInterface
      */
     private ManagerInterface $eventManager;
+    /**
+     * @var Config
+     */
     private Config $config;
+    /**
+     * @var DirectoryHelper $directoryHelper Helper for directory-related operations.
+     */
     private DirectoryHelper $directoryHelper;
-    private CoreFactory $configFactory;
 
     /**
      * Construct
@@ -103,7 +114,7 @@ class Ngenius implements MethodInterface
     /**
      * @inheritDoc
      */
-    public function getFormBlockType()
+    public function getFormBlockType(): string
     {
         return $this->formBlockType;
     }
@@ -137,7 +148,7 @@ class Ngenius implements MethodInterface
      *
      * @return string
      */
-    public function getOrderPlaceRedirectUrl()
+    public function getOrderPlaceRedirectUrl(): string
     {
         return $this->getCheckoutRedirectUrl();
     }
@@ -147,7 +158,7 @@ class Ngenius implements MethodInterface
      *
      * @return string
      */
-    public function getCheckoutRedirectUrl()
+    public function getCheckoutRedirectUrl(): string
     {
         return $this->urlBuilder->getUrl('ngeniusonline/redirect');
     }
@@ -155,7 +166,7 @@ class Ngenius implements MethodInterface
     /**
      * @inheritDoc
      */
-    public function getStore()
+    public function getStore(): int
     {
         return $this->config->getStoreId();
     }
@@ -163,7 +174,7 @@ class Ngenius implements MethodInterface
     /**
      * @inheritDoc
      */
-    public function getCode()
+    public function getCode(): string
     {
         return Config::METHOD_CODE;
     }
@@ -184,7 +195,7 @@ class Ngenius implements MethodInterface
     /**
      * @inheritDoc
      */
-    public function canOrder()
+    public function canOrder(): bool
     {
         return true;
     }
@@ -192,7 +203,7 @@ class Ngenius implements MethodInterface
     /**
      * @inheritDoc
      */
-    public function canAuthorize()
+    public function canAuthorize(): bool
     {
         return true;
     }
@@ -200,7 +211,7 @@ class Ngenius implements MethodInterface
     /**
      * @inheritDoc
      */
-    public function canCapture()
+    public function canCapture(): bool
     {
         return true;
     }
@@ -208,7 +219,7 @@ class Ngenius implements MethodInterface
     /**
      * @inheritDoc
      */
-    public function canCapturePartial()
+    public function canCapturePartial(): bool
     {
         return true;
     }
@@ -216,7 +227,7 @@ class Ngenius implements MethodInterface
     /**
      * @inheritDoc
      */
-    public function canCaptureOnce()
+    public function canCaptureOnce(): bool
     {
         return true;
     }
@@ -224,7 +235,7 @@ class Ngenius implements MethodInterface
     /**
      * @inheritDoc
      */
-    public function canRefund()
+    public function canRefund(): bool
     {
         return true;
     }
@@ -232,7 +243,7 @@ class Ngenius implements MethodInterface
     /**
      * @inheritDoc
      */
-    public function canRefundPartialPerInvoice()
+    public function canRefundPartialPerInvoice(): bool
     {
         return false;
     }
@@ -240,7 +251,7 @@ class Ngenius implements MethodInterface
     /**
      * @inheritDoc
      */
-    public function canVoid()
+    public function canVoid(): bool
     {
         return true;
     }
@@ -248,7 +259,7 @@ class Ngenius implements MethodInterface
     /**
      * @inheritDoc
      */
-    public function canUseInternal()
+    public function canUseInternal(): bool
     {
         return true;
     }
@@ -256,7 +267,7 @@ class Ngenius implements MethodInterface
     /**
      * @inheritDoc
      */
-    public function canUseCheckout()
+    public function canUseCheckout(): bool
     {
         return true;
     }
@@ -264,7 +275,7 @@ class Ngenius implements MethodInterface
     /**
      * @inheritDoc
      */
-    public function canEdit()
+    public function canEdit(): bool
     {
         return true;
     }
@@ -272,7 +283,7 @@ class Ngenius implements MethodInterface
     /**
      * @inheritDoc
      */
-    public function canFetchTransactionInfo()
+    public function canFetchTransactionInfo(): bool
     {
         return true;
     }
@@ -280,7 +291,7 @@ class Ngenius implements MethodInterface
     /**
      * @inheritDoc
      */
-    public function fetchTransactionInfo(InfoInterface $payment, $transactionId)
+    public function fetchTransactionInfo(InfoInterface $payment, $transactionId): bool
     {
         return true;
     }
@@ -288,7 +299,7 @@ class Ngenius implements MethodInterface
     /**
      * @inheritDoc
      */
-    public function isGateway()
+    public function isGateway(): bool
     {
         return true;
     }
@@ -296,7 +307,7 @@ class Ngenius implements MethodInterface
     /**
      * @inheritDoc
      */
-    public function isOffline()
+    public function isOffline(): bool
     {
         return true;
     }
@@ -304,7 +315,7 @@ class Ngenius implements MethodInterface
     /**
      * @inheritDoc
      */
-    public function isInitializeNeeded()
+    public function isInitializeNeeded(): bool
     {
         return true;
     }
@@ -312,7 +323,7 @@ class Ngenius implements MethodInterface
     /**
      * @inheritDoc
      */
-    public function canUseForCountry($country)
+    public function canUseForCountry($country): bool
     {
         /*
        for specific country, the flag will set up as 1
@@ -330,7 +341,7 @@ class Ngenius implements MethodInterface
     /**
      * @inheritDoc
      */
-    public function canUseForCurrency($currencyCode)
+    public function canUseForCurrency($currencyCode): bool
     {
         return $this->config->isCurrencyCodeSupported($currencyCode);
     }
@@ -338,7 +349,7 @@ class Ngenius implements MethodInterface
     /**
      * @inheritDoc
      */
-    public function getInfoBlockType()
+    public function getInfoBlockType(): string
     {
         return $this->infoBlockType;
     }
@@ -346,7 +357,7 @@ class Ngenius implements MethodInterface
     /**
      * @inheritDoc
      */
-    public function getInfoInstance()
+    public function getInfoInstance(): ?InfoInterface
     {
         return $this->infoInstance;
     }
@@ -354,7 +365,7 @@ class Ngenius implements MethodInterface
     /**
      * @inheritDoc
      */
-    public function setInfoInstance(InfoInterface $info)
+    public function setInfoInstance(InfoInterface $info): self
     {
         $this->infoInstance = $info;
         return $this;
@@ -363,7 +374,7 @@ class Ngenius implements MethodInterface
     /**
      * @inheritDoc
      */
-    public function validate()
+    public function validate(): bool
     {
         return true;
     }
@@ -371,7 +382,7 @@ class Ngenius implements MethodInterface
     /**
      * @inheritDoc
      */
-    public function order(InfoInterface $payment, $amount)
+    public function order(InfoInterface $payment, $amount): bool
     {
         return true;
     }
@@ -379,7 +390,7 @@ class Ngenius implements MethodInterface
     /**
      * @inheritDoc
      */
-    public function authorize(InfoInterface $payment, $amount)
+    public function authorize(InfoInterface $payment, $amount): bool
     {
         return true;
     }
@@ -387,7 +398,7 @@ class Ngenius implements MethodInterface
     /**
      * @inheritDoc
      */
-    public function capture(InfoInterface $payment, $amount)
+    public function capture(InfoInterface $payment, $amount): bool
     {
         return true;
     }
@@ -395,7 +406,7 @@ class Ngenius implements MethodInterface
     /**
      * @inheritDoc
      */
-    public function refund(InfoInterface $payment, $amount)
+    public function refund(InfoInterface $payment, $amount): bool
     {
         return true;
     }
@@ -403,7 +414,7 @@ class Ngenius implements MethodInterface
     /**
      * @inheritDoc
      */
-    public function cancel(InfoInterface $payment)
+    public function cancel(InfoInterface $payment): bool
     {
         return true;
     }
@@ -411,7 +422,7 @@ class Ngenius implements MethodInterface
     /**
      * @inheritDoc
      */
-    public function void(InfoInterface $payment)
+    public function void(InfoInterface $payment): bool
     {
         return true;
     }
@@ -419,39 +430,81 @@ class Ngenius implements MethodInterface
     /**
      * @inheritDoc
      */
-    public function canReviewPayment()
+    public function canReviewPayment(): bool
     {
         return true;
     }
 
     /**
-     * @inheritDoc
+     * Accepts the payment.
+     *
+     * This method is used to accept a payment during the payment review process.
+     * It ensures that the payment is marked as accepted and can proceed further.
+     *
+     * @param InfoInterface $payment The payment instance being accepted.
+     *
+     * @return bool Returns true to indicate the payment was successfully accepted.
      */
-    public function acceptPayment(InfoInterface $payment)
+    public function acceptPayment(InfoInterface $payment): bool
     {
         return true;
     }
 
     /**
-     * @inheritDoc
+     * Denies the payment during the review process.
+     *
+     * This method is used to deny a payment that is under review. It ensures
+     * that the payment is marked as denied and cannot proceed further.
+     *
+     * @param InfoInterface $payment The payment instance being denied.
+     *
+     * @return false Always returns false to indicate the payment was denied.
+     * @throws LocalizedException If the payment review action is unavailable.
      */
     public function denyPayment(InfoInterface $payment)
     {
-        return true;
+        if (!$this->canReviewPayment()) {
+            throw new LocalizedException(__('The payment review action is unavailable.'));
+        }
+
+        return false;
     }
 
     /**
-     * @inheritDoc
+     * @inheritdoc
+     *
+     * @param DataObject $data
+     *
+     * @return $this
+     * @throws LocalizedException
      */
     public function assignData(DataObject $data)
     {
-        return true;
+        $this->eventManager->dispatch(
+            'payment_method_assign_data_' . $this->getCode(),
+            [
+                AbstractDataAssignObserver::METHOD_CODE => $this,
+                AbstractDataAssignObserver::MODEL_CODE  => $this->getInfoInstance(),
+                AbstractDataAssignObserver::DATA_CODE   => $data
+            ]
+        );
+
+        $this->eventManager->dispatch(
+            'payment_method_assign_data',
+            [
+                AbstractDataAssignObserver::METHOD_CODE => $this,
+                AbstractDataAssignObserver::MODEL_CODE  => $this->getInfoInstance(),
+                AbstractDataAssignObserver::DATA_CODE   => $data
+            ]
+        );
+
+        return $this;
     }
 
     /**
      * @inheritDoc
      */
-    public function isAvailable(?CartInterface $quote = null)
+    public function isAvailable(?CartInterface $quote = null): bool
     {
         return $this->config->isMethodAvailable();
     }
@@ -459,7 +512,7 @@ class Ngenius implements MethodInterface
     /**
      * @inheritDoc
      */
-    public function isActive($storeId = null)
+    public function isActive($storeId = null): bool
     {
         return (bool)(int)$this->getConfigData('active', $storeId);
     }
@@ -467,16 +520,18 @@ class Ngenius implements MethodInterface
     /**
      * @inheritDoc
      */
-    public function initialize($paymentAction, $stateObject)
+    public function initialize($paymentAction, $stateObject): bool
     {
         return true;
     }
 
     /**
-     * @inheritDoc
+     * Mapper from N-Genius-specific payment actions to Magento payment actions
+     *
+     * @return string|null
      */
     public function getConfigPaymentAction()
     {
-        return true;
+        return $this->config->getPaymentAction();
     }
 }

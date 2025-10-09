@@ -83,7 +83,7 @@ class OrderSender extends \Magento\Sales\Model\Order\Email\Sender\OrderSender
      * @return bool
      * @throws \Magento\Framework\Exception\LocalizedException
      */
-    public function send(Order $order, $forceSyncMode = false)
+    public function send(Order $order, $forceSyncMode = false): bool
     {
         $paymentCode = $order->getPayment()->getMethodInstance()->getCode();
 

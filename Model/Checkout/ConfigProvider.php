@@ -9,9 +9,22 @@ use Psr\Log\LoggerInterface;
 
 class ConfigProvider implements ConfigProviderInterface
 {
-    private $assetRepo;
-    private $logger;
+    /**
+     * @var Repository
+     */
+    private Repository $assetRepo;
 
+    /**
+     * @var LoggerInterface
+     */
+    private LoggerInterface $logger;
+
+    /**
+     * ConfigProvider constructor.
+     *
+     * @param Repository $assetRepo
+     * @param LoggerInterface $logger
+     */
     public function __construct(
         Repository $assetRepo,
         LoggerInterface $logger
@@ -20,7 +33,12 @@ class ConfigProvider implements ConfigProviderInterface
         $this->logger    = $logger;
     }
 
-    public function getConfig()
+    /**
+     * Retrieve configuration array.
+     *
+     * @return array
+     */
+    public function getConfig(): array
     {
         $logoUrl = $this->assetRepo->getUrl('NetworkInternational_NGenius::images/ngenius_logo.png');
 

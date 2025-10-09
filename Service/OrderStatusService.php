@@ -4,6 +4,7 @@ namespace NetworkInternational\NGenius\Service;
 
 use Magento\Checkout\Model\Session as CheckoutSession;
 use Magento\Framework\App\ResourceConnection;
+use Magento\Framework\DataObject;
 use Magento\Framework\DB\TransactionFactory;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
@@ -11,12 +12,12 @@ use Magento\Framework\HTTP\Client\Curl;
 use Magento\Framework\Message\ManagerInterface;
 use Magento\Sales\Api\Data\InvoiceInterface;
 use Magento\Sales\Api\Data\TransactionInterface;
+use Magento\Sales\Api\InvoiceRepositoryInterface;
 use Magento\Sales\Api\OrderRepositoryInterface;
 use Magento\Sales\Model\Order;
 use Magento\Sales\Model\Order\Email\Sender\InvoiceSender;
 use Magento\Sales\Model\Order\Invoice;
 use Magento\Sales\Model\Order\Payment\Transaction;
-use Magento\Sales\Model\Order\Payment\Transaction\Builder;
 use Magento\Sales\Model\Order\Payment\Transaction\BuilderInterface;
 use Magento\Sales\Model\OrderFactory;
 use Magento\Sales\Model\Service\InvoiceService;
@@ -30,40 +31,118 @@ use Psr\Log\LoggerInterface;
 
 class OrderStatusService
 {
-    private const STATE_PBL_STARTED = 'PBL_STARTED';
-    private const NGENIUS_EMBEDED   = '_embedded';
-    private const NGENIUS_STARTED   = 'STARTED';
-    private const NGENIUS_AWAIT3DS  = 'AWAIT3DS';
-    private const NGENIUS_PENDING   = 'PENDING';
-    private const NGENIUS_CANCELLED = 'CANCELLED';
-    private const NGENIUS_FAILED    = 'FAILED';
-    const         NGENIUS_AUTHORISED =  'AUTHORISED';
-    const         NGENIUS_CAPTURED   =  'CAPTURED';
-    const         NGENIUS_PURCHASED  =  'PURCHASED';
+    private const         STATE_PBL_STARTED  = 'PBL_STARTED';
+    private const         NGENIUS_EMBEDED    = '_embedded';
+    private const         NGENIUS_STARTED    = 'STARTED';
+    private const         NGENIUS_AWAIT3DS   = 'AWAIT3DS';
+    private const         NGENIUS_PENDING    = 'PENDING';
+    private const         NGENIUS_CANCELLED  = 'CANCELLED';
+    private const         NGENIUS_FAILED     = 'FAILED';
+    private const         NGENIUS_AUTHORISED = 'AUTHORISED';
+    private const         NGENIUS_CAPTURED   = 'CAPTURED';
+    private const         NGENIUS_PURCHASED  = 'PURCHASED';
 
+    /**
+     * @var Config $config Configuration settings for the N-Genius gateway.
+     */
     private Config $config;
+
+    /**
+     * @var OrderRepositoryInterface $orderRepository Repository for managing orders.
+     */
     private OrderRepositoryInterface $orderRepository;
+
+    /**
+     * @var LoggerInterface $logger Logger for logging messages and errors.
+     */
     private LoggerInterface $logger;
+
+    /**
+     * @var OrderFactory $orderFactory Factory for creating order instances.
+     */
     private OrderFactory $orderFactory;
+
+    /**
+     * @var Curl $curl HTTP client for making API requests.
+     */
     private Curl $curl;
+
+    /**
+     * @var TokenRequest $tokenRequest Handles token requests for the N-Genius API.
+     */
     private TokenRequest $tokenRequest;
+
+    /**
+     * @var TransactionFetch $transaction Fetches transaction details from the N-Genius API.
+     */
     private TransactionFetch $transaction;
+
+    /**
+     * @var ResourceConnection $resourceConnection Provides access to the database connection.
+     */
     private ResourceConnection $resourceConnection;
+
+    /**
+     * @var OrderSender $orderSender Sends order-related emails.
+     */
     private OrderSender $orderSender;
+
+    /**
+     * @var string|null $ngeniusState Current state of the N-Genius payment process.
+     */
     private ?string $ngeniusState = null;
+
+    /**
+     * @var InvoiceService $invoiceService Service for managing invoices.
+     */
     private InvoiceService $invoiceService;
+
+    /**
+     * @var CheckoutSession $checkoutSession Manages the checkout session data.
+     */
     private CheckoutSession $checkoutSession;
+
+    /**
+     * @var InvoiceSender $invoiceSender Sends invoice-related emails.
+     */
     private InvoiceSender $invoiceSender;
+
+    /**
+     * @var BuilderInterface $transactionBuilder Builds payment transactions.
+     */
     private BuilderInterface $transactionBuilder;
-    private Builder $_transactionBuilder;
+
+    /**
+     * @var TransactionFactory $transactionFactory Factory for creating database transactions.
+     */
     private TransactionFactory $transactionFactory;
     /**
      * @var true
      */
+    /**
+     * @var bool $error Indicates if an error occurred during processing.
+     */
     private bool $error;
+
+    /**
+     * @var NgeniusApiService $ngeniusApiService Service for interacting with the N-Genius API.
+     */
     private NgeniusApiService $ngeniusApiService;
+
+    /**
+     * @var ManagerInterface $messageManager Manages system messages for the user interface.
+     */
     private ManagerInterface $messageManager;
+
+    /**
+     * @var string $errorMessage Stores error messages for logging or display.
+     */
     private string $errorMessage;
+
+    /**
+     * @var InvoiceRepositoryInterface $invoiceRepository Repository for managing invoice entities.
+     */
+    private InvoiceRepositoryInterface $invoiceRepository;
 
     /**
      * @param Config $config
@@ -79,10 +158,10 @@ class OrderStatusService
      * @param InvoiceService $invoiceService
      * @param OrderSender $orderSender
      * @param BuilderInterface $transactionBuilder
-     * @param Builder $_transactionBuilder
      * @param TransactionFactory $transactionFactory
      * @param NgeniusApiService $ngeniusApiService
      * @param ManagerInterface $messageManager
+     * @param InvoiceRepositoryInterface $invoiceRepository
      */
     public function __construct(
         Config $config,
@@ -98,35 +177,49 @@ class OrderStatusService
         InvoiceService $invoiceService,
         OrderSender $orderSender,
         BuilderInterface $transactionBuilder,
-        Builder $_transactionBuilder,
         TransactionFactory $transactionFactory,
         NgeniusApiService $ngeniusApiService,
         ManagerInterface $messageManager,
+        InvoiceRepositoryInterface $invoiceRepository,
     ) {
-        $this->config               = $config;
-        $this->orderRepository      = $orderRepository;
-        $this->logger               = $logger;
-        $this->orderFactory         = $orderFactory;
-        $this->curl                 = $curl;
-        $this->tokenRequest         = $tokenRequest;
-        $this->transaction          = $transaction;
-        $this->resourceConnection   = $resourceConnection;
-        $this->invoiceSender        = $invoiceSender;
-        $this->checkoutSession      = $checkoutSession;
-        $this->invoiceService       = $invoiceService;
-        $this->orderSender          = $orderSender;
-        $this->transactionBuilder   = $transactionBuilder;
-        $this->_transactionBuilder  = $_transactionBuilder;
-        $this->transactionFactory   = $transactionFactory;
-        $this->ngeniusApiService    = $ngeniusApiService;
-        $this->messageManager       = $messageManager;
+        $this->config             = $config;
+        $this->orderRepository    = $orderRepository;
+        $this->logger             = $logger;
+        $this->orderFactory       = $orderFactory;
+        $this->curl               = $curl;
+        $this->tokenRequest       = $tokenRequest;
+        $this->transaction        = $transaction;
+        $this->resourceConnection = $resourceConnection;
+        $this->invoiceSender      = $invoiceSender;
+        $this->checkoutSession    = $checkoutSession;
+        $this->invoiceService     = $invoiceService;
+        $this->orderSender        = $orderSender;
+        $this->transactionBuilder = $transactionBuilder;
+        $this->transactionFactory = $transactionFactory;
+        $this->ngeniusApiService  = $ngeniusApiService;
+        $this->messageManager     = $messageManager;
+        $this->invoiceRepository  = $invoiceRepository;
     }
 
+    /**
+     * Checks if the payment method for the given order is N-Genius.
+     *
+     * @param Order $order The order instance to check.
+     *
+     * @return bool True if the payment method is N-Genius, false otherwise.
+     */
     public function isNgeniusPayment(Order $order): bool
     {
         return $order->getPayment() && $order->getPayment()->getMethod() === 'ngeniusonline';
     }
 
+    /**
+     * Sets the initial status and state for the given order.
+     *
+     * @param Order $order The order instance to update.
+     *
+     * @return void
+     */
     public function setInitialStatus(Order $order): void
     {
         $storeId       = $order->getStoreId();
@@ -137,49 +230,69 @@ class OrderStatusService
         $this->orderRepository->save($order);
     }
 
+    /**
+     * Retrieves the default status for N-Genius orders.
+     *
+     * @return string The default order status.
+     */
     public function getDefaultStatus(): string
     {
         return DataPatch::getStatuses()[0]['status'];
     }
 
+    /**
+     * Retrieves the default state for PBL (Pay By Link) orders.
+     *
+     * @return string The default PBL state.
+     */
     public function getDefaultPBLState(): string
     {
         return self::STATE_PBL_STARTED;
     }
 
+    /**
+     * Processes a list of normal orders, updating their state and status.
+     * Interacts with the N-Genius API to handle payment processing.
+     * Includes logging, error handling, and ensures no more than 5 orders
+     * are processed in one execution to avoid timeouts.
+     *
+     * @param array $orderItems The list of order items to process.
+     *
+     * @return void
+     */
     public function processNormalOrders(array $orderItems): void
     {
         $counter = 0;
-        foreach ($orderItems as $orderItem) {
+        foreach ($orderItems as $row) {
             if ($counter >= 5) {
                 $this->logger->info("N-GENIUS: Breaking loop at 5 orders to avoid timeout");
                 break;
             }
 
-            $orderItem->setState('cron');
-            $orderItem->setStatus('cron');
-            $orderItem->save();
+            $orderItem = is_array($row) ? new DataObject($row) : $row;
 
-            $orderRef    = $orderItem->getReference();
-            $incrementId = $orderItem->getOrderId();
+            $orderItem->setData('state', 'cron');
+            $orderItem->setData('status', 'cron');
+
+            $orderRef    = (string)($orderItem->getData('reference') ?? $orderItem->getReference());
+            $incrementId = (string)($orderItem->getData('order_id') ?? $orderItem->getOrderId());
+
+            if (!$incrementId) {
+                $this->logger->info("N-GENIUS: Missing order increment ID");
+                continue;
+            }
+
             $order = $this->orderFactory->create()->loadByIncrementId($incrementId);
-
             if (!$order->getId()) {
-                $this->logger->info("N-GENIUS: Magento order not found");
-                break;
+                $this->logger->info("N-GENIUS: Magento order not found for Increment ID: {$incrementId}");
+                continue;
             }
 
             try {
-                if (!$this->isNgeniusPayment($order)) {
-                    $this->logger->info("N-GENIUS: Order#{$incrementId} will not be processed");
-                    continue;
-                }
+                $order->addCommentToStatusHistory(__('This order is being processed by the cron.'));
+                $this->orderRepository->save($order);
 
-                $this->logger->info("N-GENIUS: Processing order {$incrementId}");
-
-                $order->addStatusHistoryComment(__('This is order is being processed by the cron.'))->save();
-
-                $storeId = $order->getStoreId();
+                $storeId  = (int)$order->getStoreId();
                 $result   = $this->ngeniusApiService->getResponseAPI($orderRef, $storeId);
                 $embedded = self::NGENIUS_EMBEDED;
 
@@ -187,31 +300,46 @@ class OrderStatusService
                     $action       = $result['action'] ?? '';
                     $apiProcessor = new ApiProcessor($result);
                     $paymentState = $apiProcessor->getPaymentResult()['state'] ?? '';
-
                     $this->logger->info('N-GENIUS: state is ' . $paymentState);
 
-                    if ($paymentState === self::NGENIUS_STARTED
-                        || $paymentState === self::NGENIUS_AWAIT3DS
-                        || $paymentState === self::NGENIUS_PENDING
-                        || $paymentState === self::NGENIUS_CANCELLED
-                    ) {
+                    if (in_array(
+                        $paymentState,
+                        [
+                            self::NGENIUS_STARTED,
+                            self::NGENIUS_AWAIT3DS,
+                            self::NGENIUS_PENDING,
+                            self::NGENIUS_CANCELLED
+                        ],
+                        true
+                    )) {
                         $this->ngeniusState = self::NGENIUS_FAILED;
                     }
 
                     $this->processOrder($apiProcessor, $orderItem, $action);
                 } else {
                     $this->logger->info("N-GENIUS: Payment result not found");
-                    $order->addStatusHistoryComment(__('N-GENIUS Payment result not found.'))->save();
+                    $order->addCommentToStatusHistory(__('N-GENIUS Payment result not found.'));
+                    $this->orderRepository->save($order);
                     $this->logger->info("N-GENIUS: Result " . json_encode($result));
                 }
                 $counter++;
             } catch (\Exception $e) {
                 $this->logger->info('N-GENIUS: exception ' . $e->getMessage());
-                $order->addStatusHistoryComment(__('N-GENIUS: Exception ' . $e->getMessage()))->save();
+                $order->addCommentToStatusHistory(__('N-GENIUS: Exception ' . $e->getMessage()));
+                $this->orderRepository->save($order);
             }
         }
     }
 
+    /**
+     * Processes a list of Pay By Link (PBL) orders, updating their state and status.
+     * Interacts with the N-Genius API to handle payment processing for PBL orders.
+     * Includes logging, error handling, and skips non-N-Genius orders.
+     *
+     * @param array $pblOrderItems The list of PBL order items to process.
+     *
+     * @return void
+     */
     public function processPBLOrders(array $pblOrderItems): void
     {
         if (empty($pblOrderItems)) {
@@ -220,16 +348,15 @@ class OrderStatusService
         }
 
         $counter = 0;
-        foreach ($pblOrderItems as $orderItem) {
+        foreach ($pblOrderItems as $row) {
+            $orderItem = is_array($row) ? new DataObject($row) : $row;
 
             try {
-                $orderRef    = $orderItem->getReference();
-                $incrementId = $orderItem->getOrderId();
+                $orderRef    = (string)($orderItem->getData('reference') ?? $orderItem->getReference());
+                $incrementId = (string)($orderItem->getData('order_id') ?? $orderItem->getOrderId());
                 $this->logger->info("N-GENIUS PBL: Processing order {$incrementId}");
-                $order = $this->orderFactory->create()->loadByIncrementId($incrementId);
-
-                $order->addStatusHistoryComment(__('This is order is being processed by the cron.'))->save();
-                $createdAt = strtotime($orderItem->getCreatedAt());
+                $order     = $this->orderFactory->create()->loadByIncrementId($incrementId);
+                $createdAt = strtotime((string)($orderItem->getData('created_at') ?? $orderItem->getCreatedAt()));
 
                 if (!$order->getId()) {
                     $this->logger->info("N-GENIUS PBL: Magento order not found for Increment ID: {$incrementId}");
@@ -241,35 +368,34 @@ class OrderStatusService
                     continue;
                 }
 
-                $orderRef = $orderItem->getReference();
-                $storeId  = $order->getStoreId();
-                $result = $this->ngeniusApiService->getResponseAPI($orderRef, $storeId);
+                $storeId = (int)$order->getStoreId();
+                $result  = $this->ngeniusApiService->getResponseAPI($orderRef, $storeId);
 
                 if ($result && isset($result[self::NGENIUS_EMBEDED]['payment'][0])) {
-                    $apiProcessor  = new ApiProcessor($result);
+                    $apiProcessor = new ApiProcessor($result);
                     $paymentState = $apiProcessor->getPaymentResult()['state'] ?? '';
-                    $action        = $result['action'] ?? '';
-                    $this->logger->info('N-GENIUS PBL: state is ' . $paymentState);
-                    $isAbandoned       = $apiProcessor->isPaymentAbandoned();
-                    $isOlderThan3Days  = $createdAt < strtotime('-3 days');
+                    $action       = $result['action'] ?? '';
+                    $this->logger->info('N-GENIUS: state is ' . $paymentState);
+                    $isAbandoned      = $apiProcessor->isPaymentAbandoned();
+                    $isOlderThan3Days = $createdAt < strtotime('-3 days');
 
                     if (!$isAbandoned || $isOlderThan3Days) {
                         $this->processOrder($apiProcessor, $orderItem, $action);
                     }
                 } else {
                     $this->logger->info("N-GENIUS PBL: Payment result not found");
-                    $order->addStatusHistoryComment(__('N-GENIUS Payment result not found.'))->save();
-                    $this->logger->info("N-GENIUS PBL: Result " . json_encode($result));
-                    $orderItem->setState('cron');
-                    $orderItem->setStatus('cron');
-                    $orderItem->save();
+                    $order->addCommentToStatusHistory(__('N-GENIUS Payment result not found.'));
+                    $this->orderRepository->save($order);
+
+                    $orderItem->setData('state', 'cron');
+                    $orderItem->setData('status', 'cron');
                 }
 
                 $counter++;
             } catch (\Exception $e) {
                 $this->logger->info('N_GENIUS PBL: Exception ' . $e->getMessage());
                 if (isset($order) && $order->getId()) {
-                    $order->addStatusHistoryComment(__('N-GENIUS PBL: Exception ' . $e->getMessage()));
+                    $order->addCommentToStatusHistory(__('N-GENIUS PBL: Exception ' . $e->getMessage()));
                     $this->orderRepository->save($order);
                 }
             }
@@ -277,15 +403,15 @@ class OrderStatusService
     }
 
     /**
-     * Magento order capturing
+     * Handles the capture payment process.
      *
-     * @param Order $order
-     * @param ApiProcessor $apiProcessor
-     * @param string $paymentId
-     * @param string $action
-     * @param array $dataTable
+     * @param Order $order The order instance.
+     * @param ApiProcessor $apiProcessor The API processor instance.
+     * @param string $paymentId The payment ID.
+     * @param string $action The action to be performed.
+     * @param array $dataTable The data table for storing results.
      *
-     * @return array
+     * @return array The updated data table.
      * @throws LocalizedException
      * @throws NoSuchEntityException
      */
@@ -299,7 +425,8 @@ class OrderStatusService
         $paymentResult = $apiProcessor->getPaymentResult();
         if ($apiProcessor->isPaymentConfirmed()) {
             $order->setState(Order::STATE_PROCESSING);
-            $order->setStatus(Order::STATE_PROCESSING)->save();
+            $order->setStatus(Order::STATE_PROCESSING);
+            $this->orderRepository->save($order);
             $this->orderSender->send($order, true);
 
             if ($action === "AUTH") {
@@ -315,10 +442,10 @@ class OrderStatusService
             // Reverse reserved stock
             $this->error        = true;
             $this->errorMessage = 'Result Code: ' . ($paymentResult['authResponse']['resultCode'] ?? 'FAILED')
-                                  . ' Reason: ' . ($paymentResult['authResponse']['resultMessage'] ?? 'Unknown');
+                . ' Reason: ' . ($paymentResult['authResponse']['resultMessage'] ?? 'Unknown');
             $this->checkoutSession->restoreQuote();
 
-            $payment = $order->getPayment();
+            $payment        = $order->getPayment();
             $formattedPrice = $order->getBaseCurrency()->formatTxt($order->getGrandTotal());
 
             $paymentData = [
@@ -327,17 +454,17 @@ class OrderStatusService
                 'Amount'      => $formattedPrice
             ];
 
-            $trans = $this->_transactionBuilder;
+            $trans = $this->transactionBuilder;
 
             $transaction = $trans->setPayment($payment)
-                                 ->setOrder($order)
-                                 ->setTransactionId($paymentId)
-                                 ->setAdditionalInformation(
-                                     [Transaction::RAW_DETAILS => $paymentData]
-                                 )
-                                 ->setFailSafe(true)
+                ->setOrder($order)
+                ->setTransactionId($paymentId)
+                ->setAdditionalInformation(
+                    [Transaction::RAW_DETAILS => $paymentData]
+                )
+                ->setFailSafe(true)
                 // Build method creates the transaction and returns the object
-                                 ->build(TransactionInterface::TYPE_CAPTURE);
+                ->build(TransactionInterface::TYPE_CAPTURE);
 
             $payment->addTransactionCommentsToOrder(
                 $transaction,
@@ -346,9 +473,11 @@ class OrderStatusService
 
             $payment->setParentTransactionId(null);
             $payment->save();
-            $order->save();
+            $this->orderRepository->save($order);
 
-            $transaction->save()->getTransactionId();
+            $transactionSave = $this->transactionFactory->create()->addObject($transaction);
+            $transactionSave->save();
+            $transactionId = $transaction->getTransactionId();
             $this->updateInvoice($order, false);
 
             $payment->setAdditionalInformation(['raw_details_info' => json_encode($paymentResult)]);
@@ -369,27 +498,29 @@ class OrderStatusService
 
             $dataTable['status'] = $status;
 
-            $order->cancel()->save();
+            $order->cancel();
+            $this->orderRepository->save($order);
 
             $order->setState($state);
             $order->setStatus($status);
-            $order->save();
+            $this->orderRepository->save($order);
 
-            $order->addStatusHistoryComment('The payment on order has failed.')
-                  ->setIsCustomerNotified(false)->save();
+            $order->addCommentToStatusHistory('The payment on order has failed.')
+                ->setIsCustomerNotified(false);
+            $this->orderRepository->save($order);
         }
 
         return $dataTable;
     }
 
     /**
-     * Order Authorize.
+     * Authorizes the order payment.
      *
-     * @param Order $order
-     * @param array $paymentResult
-     * @param string $paymentId
+     * @param Order $order The order instance.
+     * @param array $paymentResult The payment result data.
+     * @param string $paymentId The payment ID.
      *
-     * @return null
+     * @return void
      * @throws Exception
      * @throws NoSuchEntityException
      */
@@ -410,17 +541,17 @@ class OrderStatusService
             ];
 
             $transactionBuilder = $this->transactionBuilder->setPayment($payment)
-                                                           ->setOrder($order)
-                                                           ->setTransactionId($paymentId)
-                                                           ->setAdditionalInformation(
-                                                               [Transaction::RAW_DETAILS => $paymentData]
-                                                           )->setAdditionalInformation(
-                                                               ['paymentResult' => json_encode($paymentResult)]
-                                                           )
-                                                           ->setFailSafe(true)
-                                                           ->build(
-                                                               Transaction::TYPE_AUTH
-                                                           );
+                ->setOrder($order)
+                ->setTransactionId($paymentId)
+                ->setAdditionalInformation(
+                    [Transaction::RAW_DETAILS => $paymentData]
+                )->setAdditionalInformation(
+                    ['paymentResult' => json_encode($paymentResult)]
+                )
+                ->setFailSafe(true)
+                ->build(
+                    TransactionInterface::TYPE_AUTH
+                );
 
             $payment->addTransactionCommentsToOrder($transactionBuilder, null);
             $payment->setParentTransactionId(null);
@@ -433,14 +564,14 @@ class OrderStatusService
     }
 
     /**
-     * Order Status Updater
+     * Updates the order status.
      *
-     * @param Order $order
-     * @param ?string $status
-     * @param string $message
+     * @param Order $order The order instance.
+     * @param string|null $status The new status for the order.
+     * @param string $message The message to be added to the order history.
      *
      * @return void
-     * @throws NoSuchEntityException
+     * @throws NoSuchEntityException If the entity does not exist.
      */
     private function updateOrderStatus(Order $order, ?string $status, string $message): void
     {
@@ -456,11 +587,17 @@ class OrderStatusService
         }
 
         $order->addStatusToHistory($status, $message, true);
-        $order->save();
+        $this->orderRepository->save($order);
     }
 
     /**
      * Capture/Sale path (matches controller orderSale).
+     *
+     * @param object $order The order instance.
+     * @param array $paymentResult The payment result data.
+     * @param string $paymentId The payment ID.
+     *
+     * @return float|null The captured amount or null if the state is not captured or purchased.
      */
     public function orderSale(object $order, array $paymentResult, string $paymentId): ?float
     {
@@ -474,8 +611,8 @@ class OrderStatusService
         $payment->setAdditionalInformation(['paymentResult' => json_encode($paymentResult)]);
         $payment->setIsTransactionClosed(false);
 
-        $grandTotal    = (float) $order->getGrandTotal();
-        $formatted     = $order->getBaseCurrency()->formatTxt($grandTotal);
+        $grandTotal = (float)$order->getGrandTotal();
+        $formatted  = $order->getBaseCurrency()->formatTxt($grandTotal);
 
         $paymentData = [
             'Card Type'   => $paymentResult['paymentMethod']['name'] ?? '',
@@ -489,10 +626,10 @@ class OrderStatusService
             ->setPayment($payment)
             ->setOrder($order)
             ->setTransactionId($transactionId)
-            ->setAdditionalInformation([Transaction::RAW_DETAILS => (array) $paymentData])
+            ->setAdditionalInformation([Transaction::RAW_DETAILS => (array)$paymentData])
             ->setAdditionalInformation(['paymentResult' => json_encode($paymentResult)])
             ->setFailSafe(true)
-            ->build(Transaction::TYPE_CAPTURE);
+            ->build(TransactionInterface::TYPE_CAPTURE);
 
         $payment->addTransactionCommentsToOrder($transactionBuilder, null);
         $payment->setParentTransactionId(null);
@@ -509,7 +646,13 @@ class OrderStatusService
     }
 
     /**
-     * Mirrors controller processOrder (functional parity).
+     * Processes the order based on the provided data.
+     *
+     * @param ApiProcessor $apiProcessor The API processor instance.
+     * @param object $orderItem The order item being processed.
+     * @param string $action The action to be performed on the order.
+     *
+     * @return void
      */
     public function processOrder(
         ApiProcessor $apiProcessor,
@@ -522,8 +665,8 @@ class OrderStatusService
             return;
         }
 
-        $paymentId     = $apiProcessor->getPaymentId();
-        $paymentResult = $apiProcessor->getPaymentResult();
+        $paymentId          = $apiProcessor->getPaymentId();
+        $paymentResult      = $apiProcessor->getPaymentResult();
         $this->ngeniusState = strtoupper($paymentResult['state'] ?? '');
 
         $order   = $this->orderFactory->create()->loadByIncrementId($incrementId);
@@ -555,6 +698,15 @@ class OrderStatusService
         $this->updateTable($dataTable, $orderItem);
     }
 
+    /**
+     * Updates the invoice for the order.
+     *
+     * @param InvoiceInterface|Invoice $invoice The invoice instance.
+     * @param string|null $transactionId The transaction ID for the invoice.
+     * @param object $order The order instance.
+     *
+     * @return void
+     */
     public function doUpdateInvoice(
         InvoiceInterface|Invoice $invoice,
         ?string $transactionId,
@@ -562,7 +714,8 @@ class OrderStatusService
     ): void {
         $invoice->setRequestedCaptureCase(Invoice::CAPTURE_ONLINE);
         $invoice->setTransactionId($transactionId);
-        $invoice->pay()->save();
+        $invoice->pay();
+        $this->invoiceRepository->save($invoice);
         $transactionSave = $this->transactionFactory->create()->addObject($invoice)->addObject(
             $invoice->getOrder()
         );
@@ -580,6 +733,15 @@ class OrderStatusService
         }
     }
 
+    /**
+     * Updates the invoice for the given order.
+     *
+     * @param object $order The order instance.
+     * @param bool $flag Indicates whether to update or cancel the invoice.
+     * @param string|null $transactionId The transaction ID for the invoice.
+     *
+     * @return void
+     */
     public function updateInvoice(object $order, bool $flag, ?string $transactionId = null): void
     {
         if ($order->hasInvoices()) {
@@ -602,17 +764,58 @@ class OrderStatusService
         }
     }
 
+    /**
+     * Updates the database table with the provided data.
+     *
+     * @param array $data The data to be updated in the table.
+     * @param object $orderItem The order item associated with the data.
+     *
+     * @return bool Returns true if the update was successful, false otherwise.
+     */
     public function updateTable(array $data, object $orderItem): bool
     {
-        $orderItem->setEntityId($data['entity_id']);
-        $orderItem->setState($this->ngeniusState);
-        $orderItem->setStatus($data['status']);
-        $orderItem->setPaymentId($data['payment_id']);
-        if (isset($data['captured_amt'])) {
-            $orderItem->setCapturedAmt($data['captured_amt']);
-        }
-        $orderItem->save();
+        try {
+            $connection = $this->resourceConnection->getConnection();
+            $tableName  = $connection->getTableName('ngenius_networkinternational_sales_order');
 
-        return true;
+            $nid = null;
+            if (method_exists($orderItem, 'getNid')) {
+                $nid = $orderItem->getNid();
+            }
+            if (!$nid && method_exists($orderItem, 'getData')) {
+                $nid = $orderItem->getData('nid');
+            }
+            if (!$nid && property_exists($orderItem, 'nid')) {
+                $nid = $orderItem->nid;
+            }
+            if (!$nid) {
+                $this->logger->error("N-GENIUS: updateTable missing nid");
+                return false;
+            }
+
+            $updateData = [
+                'entity_id'  => $data['entity_id'] ?? null,
+                'state'      => $this->ngeniusState ?? null,
+                'status'     => $data['status'] ?? null,
+                'payment_id' => $data['payment_id'] ?? null,
+            ];
+            if (isset($data['captured_amt'])) {
+                $updateData['captured_amt'] = $data['captured_amt'];
+            }
+
+            $updateData = array_filter(
+                $updateData,
+                static fn($v) => $v !== null
+            );
+
+            $where  = $connection->quoteInto('nid = ?', $nid);
+            $result = $connection->update($tableName, $updateData, $where);
+
+            $this->logger->info("N-GENIUS: Updated table nid={$nid}, affected rows: {$result}");
+            return true;
+        } catch (\Exception $e) {
+            $this->logger->error("N-GENIUS: Failed to update table: " . $e->getMessage());
+            return false;
+        }
     }
 }

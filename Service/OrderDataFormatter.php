@@ -7,13 +7,28 @@ use Magento\Sales\Model\Order;
 use NetworkInternational\NGenius\Gateway\Config\Config;
 use Ngenius\NgeniusCommon\Formatter\ValueFormatter;
 
+/**
+ * Class OrderDataFormatter
+ *
+ * Formats order data for N-Genius payment processing.
+ */
 class OrderDataFormatter
 {
+    /**
+     * @var UrlInterface
+     */
     private UrlInterface $urlBuilder;
+
+    /**
+     * @var Config
+     */
     private Config $config;
 
     /**
-     * @param UrlInterface $urlBuilder
+     * OrderDataFormatter constructor.
+     *
+     * @param UrlInterface $urlBuilder The URL builder instance.
+     * @param Config $config The N-Genius configuration instance.
      */
     public function __construct(UrlInterface $urlBuilder, Config $config)
     {
@@ -21,6 +36,13 @@ class OrderDataFormatter
         $this->config     = $config;
     }
 
+    /**
+     * Formats the order data for N-Genius payment processing.
+     *
+     * @param Order $order The order instance to format.
+     *
+     * @return array The formatted order data.
+     */
     public function format(Order $order): array
     {
         $items = [];
