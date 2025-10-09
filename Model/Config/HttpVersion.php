@@ -2,19 +2,16 @@
 
 namespace NetworkInternational\NGenius\Model\Config;
 
-use Magento\Framework\Option\ArrayInterface;
+use Magento\Framework\Data\OptionSourceInterface;
 
-/**
- * Class OrderStatus
- */
-class HttpVersion implements ArrayInterface
+class HttpVersion implements OptionSourceInterface
 {
     /**
      * Options getter
      *
      * @return array
      */
-    public function toOptionArray()
+    public function toOptionArray(): array
     {
         return [
             [

@@ -2,7 +2,6 @@
 
 namespace NetworkInternational\NGenius\Observer;
 
-use Fortis\Fortis\Model\FortisApi;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\Exception\LocalizedException;
@@ -18,11 +17,11 @@ class OrderCancelAfter implements ObserverInterface
     /**
      * @var Config
      */
-    protected $config;
+    protected Config $config;
     /**
      * @var StoreManagerInterface
      */
-    protected $storeManager;
+    protected StoreManagerInterface $storeManager;
     /**
      * @var \Magento\Sales\Model\Order\Payment\Transaction\Builder
      */

@@ -23,7 +23,7 @@ class ProductQty
      *
      * @return array
      */
-    public function getProductQty($relatedItems)
+    public function getProductQty(array $relatedItems): array
     {
         $items = [];
         foreach ($relatedItems as $item) {
@@ -34,10 +34,10 @@ class ProductQty
             $children = $item->getChildrenItems();
             if ($children) {
                 foreach ($children as $childItem) {
-                    $this->_addItemToQtyArray($childItem, $items);
+                    $this->addItemToQtyArray($childItem, $items);
                 }
             } else {
-                $this->_addItemToQtyArray($item, $items);
+                $this->addItemToQtyArray($item, $items);
             }
         }
 
@@ -52,7 +52,7 @@ class ProductQty
      *
      * @return void
      */
-    protected function _addItemToQtyArray(QuoteItem $quoteItem, &$items)
+    protected function addItemToQtyArray(QuoteItem $quoteItem, array &$items): void
     {
         $productId = $quoteItem->getProductId();
         if (!$productId) {

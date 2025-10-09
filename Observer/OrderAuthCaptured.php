@@ -4,22 +4,22 @@ namespace NetworkInternational\NGenius\Observer;
 
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
-use NetworkInternational\NGenius\Model\CoreFactory;
+use NetworkInternational\NGenius\Model\ResourceModel\Core\CollectionFactory;
 
 class OrderAuthCaptured implements ObserverInterface
 {
     /**
-     * @var CoreFactory
+     * @var CollectionFactory
      */
-    protected CoreFactory $coreFactory;
+    protected CollectionFactory $collectionFactory;
 
     /**
-     * @param CoreFactory $coreFactory
+     * @param CollectionFactory $collectionFactory
      */
     public function __construct(
-        CoreFactory $coreFactory,
+        CollectionFactory $collectionFactory
     ) {
-        $this->coreFactory = $coreFactory;
+        $this->collectionFactory = $collectionFactory;
     }
 
     /**
@@ -29,7 +29,7 @@ class OrderAuthCaptured implements ObserverInterface
      *
      * @return void
      */
-    public function execute(Observer $observer)
+    public function execute(Observer $observer): void
     {
         $order = $observer->getInvoice()->getOrder();
 
@@ -40,7 +40,7 @@ class OrderAuthCaptured implements ObserverInterface
         }
 
         $orderRef   = json_decode($paymentResult)->orderReference;
-        $collection = $this->coreFactory->create()->getCollection()->addFieldToFilter(
+        $collection = $this->collectionFactory->create()->addFieldToFilter(
             'reference',
             $orderRef
         );

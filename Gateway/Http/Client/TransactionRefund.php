@@ -35,8 +35,8 @@ class TransactionRefund extends PaymentTransaction
         } else {
             $transactionProcessor = new TransactionProcessor($responseArray);
             $collection           = $this->coreFactory->create()
-                                                      ->getCollection()
-                                                      ->addFieldToFilter('reference', $responseArray['orderReference']);
+                ->getCollection()
+                ->addFieldToFilter('reference', $responseArray['orderReference']);
 
             $orderItem = $collection->getFirstItem();
 

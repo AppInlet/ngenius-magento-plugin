@@ -26,33 +26,30 @@ class RefundRequest implements BuilderInterface
 {
     use Formatter;
 
-    // phpcs:disable PSR2.Methods.MethodDeclaration.Underscore
-    // phpcs:disable PSR2.Classes.PropertyDeclaration.Underscore
-
     /**
      * @var Config
      */
-    protected $config;
+    protected Config $config;
 
     /**
      * @var TokenRequest
      */
-    protected $tokenRequest;
+    protected TokenRequest $tokenRequest;
 
     /**
      * @var StoreManagerInterface
      */
-    protected $storeManager;
+    protected StoreManagerInterface $storeManager;
 
     /**
      * @var CoreFactory
      */
-    protected $coreFactory;
+    protected CoreFactory $coreFactory;
 
     /**
      * @var OrderInterface
      */
-    protected $_orderInterface;
+    protected OrderInterface $orderInterface;
 
     /**
      * RefundRequest constructor.
@@ -70,11 +67,11 @@ class RefundRequest implements BuilderInterface
         CoreFactory $coreFactory,
         OrderInterface $orderInterface
     ) {
-        $this->config          = $config;
-        $this->tokenRequest    = $tokenRequest;
-        $this->storeManager    = $storeManager;
-        $this->coreFactory     = $coreFactory;
-        $this->_orderInterface = $orderInterface;
+        $this->config         = $config;
+        $this->tokenRequest   = $tokenRequest;
+        $this->storeManager   = $storeManager;
+        $this->coreFactory    = $coreFactory;
+        $this->orderInterface = $orderInterface;
     }
 
     /**
@@ -104,7 +101,7 @@ class RefundRequest implements BuilderInterface
 
         $incrementId = $order->getOrderIncrementId();
 
-        $order_details = $this->_orderInterface->loadByIncrementId($incrementId);
+        $order_details = $this->orderInterface->loadByIncrementId($incrementId);
 
         $token = $this->tokenRequest->getAccessToken($storeId);
         list($refund_url, $method, $error) = $this->getRefundUrl($token, $orderReference);
@@ -184,7 +181,7 @@ class RefundRequest implements BuilderInterface
     public function getResponseApi(
         string $token,
         string $order_ref
-    ) {
+    ): mixed {
         $url = $this->config->getFetchRequestURL($order_ref);
 
         $storeId             = $this->storeManager->getStore()->getId();

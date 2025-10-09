@@ -9,6 +9,7 @@ use Magento\Payment\Gateway\Validator\ResultInterfaceFactory;
 use Magento\Sales\Model\Order\Payment\Transaction;
 use Magento\Sales\Model\Order\Payment\Transaction\BuilderInterface;
 use Magento\Sales\Model\OrderFactory;
+use Magento\Sales\Api\OrderRepositoryInterface;
 
 /**
  * Validate and process order refund
@@ -17,6 +18,11 @@ use Magento\Sales\Model\OrderFactory;
  */
 class RefundValidator extends AbstractValidator
 {
+    /**
+     * @var OrderRepositoryInterface $orderRepository Repository for managing orders.
+     */
+    private OrderRepositoryInterface $orderRepository;
+
     /**
      * @var BuilderInterface
      */
@@ -30,17 +36,20 @@ class RefundValidator extends AbstractValidator
     /**
      * RefundValidator constructor.
      *
-     * @param ResultInterfaceFactory $resultFactory
-     * @param BuilderInterface $transactionBuilder
-     * @param OrderFactory $orderFactory
+     * @param ResultInterfaceFactory $resultFactory Factory for creating validation results.
+     * @param BuilderInterface $transactionBuilder Builder for creating payment transactions.
+     * @param OrderFactory $orderFactory Factory for creating order instances.
+     * @param OrderRepositoryInterface $orderRepository Repository for managing orders.
      */
     public function __construct(
         ResultInterfaceFactory $resultFactory,
         BuilderInterface $transactionBuilder,
-        OrderFactory $orderFactory
+        OrderFactory $orderFactory,
+        OrderRepositoryInterface $orderRepository
     ) {
         $this->transactionBuilder = $transactionBuilder;
         $this->orderFactory       = $orderFactory;
+        $this->orderRepository    = $orderRepository;
         parent::__construct($resultFactory);
     }
 
@@ -51,7 +60,7 @@ class RefundValidator extends AbstractValidator
      *
      * @return ResultInterface
      */
-    public function validate(array $validationSubject)
+    public function validate(array $validationSubject): ResultInterface
     {
         $response     = SubjectReader::readResponse($validationSubject);
         $paymentDO    = SubjectReader::readPayment($validationSubject);
@@ -74,23 +83,22 @@ class RefundValidator extends AbstractValidator
             ];
             $payment->setTransactionId($response['result']['payment_id']);
             $transaction = $this->transactionBuilder->setPayment($payment)
-                                                    ->setOrder($order)
-                                                    ->setTransactionId($response['result']['payment_id'])
-                                                    ->setAdditionalInformation(
-                                                        [Transaction::RAW_DETAILS => (array)$paymentData]
-                                                    )
-                                                    ->setFailSafe(true)
-                                                    ->build(
-                                                        Transaction::TYPE_CAPTURE
-                                                    );
+                ->setOrder($order)
+                ->setTransactionId($response['result']['payment_id'])
+                ->setAdditionalInformation(
+                    [Transaction::RAW_DETAILS => (array)$paymentData]
+                )
+                ->setFailSafe(true)
+                ->build(
+                    TransactionInterface::TYPE_CAPTURE
+                );
             $payment->addTransactionCommentsToOrder($transaction, null);
-            $payment->save();
             $order->addStatusToHistory(
                 $response['result']['order_status'],
                 'The refund has been processed successfully.',
                 false
             );
-            $order->save();
+            $this->orderRepository->save($order);
 
             return $this->createResult(true, []);
         }

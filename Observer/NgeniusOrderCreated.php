@@ -18,19 +18,45 @@ use Psr\Log\LoggerInterface;
 
 class NgeniusOrderCreated implements ObserverInterface
 {
+    /**
+     * @var OrderStatusService
+     */
     private OrderStatusService $orderStatusService;
+
+    /**
+     * @var NgeniusApiService
+     */
     private NgeniusApiService $ngeniusApiService;
+
+    /**
+     * @var OrderDataFormatter
+     */
     private OrderDataFormatter $orderDataFormatter;
+
+    /**
+     * @var CoreFactory
+     */
     private CoreFactory $ngeniusCoreFactory;
+
+    /**
+     * @var LoggerInterface
+     */
     private LoggerInterface $logger;
+
+    /**
+     * @var State
+     */
     private State $appState;
 
     /**
+     * Constructor
+     *
      * @param OrderStatusService $orderStatusService
      * @param NgeniusApiService $ngeniusApiService
      * @param OrderDataFormatter $orderDataFormatter
      * @param CoreFactory $coreFactory
      * @param LoggerInterface $logger
+     * @param State $appState
      */
     public function __construct(
         OrderStatusService $orderStatusService,
@@ -49,6 +75,11 @@ class NgeniusOrderCreated implements ObserverInterface
     }
 
     /**
+     * Execute observer logic
+     *
+     * @param Observer $observer
+     *
+     * @return void
      * @throws CouldNotSaveException
      * @throws Exception
      */
@@ -81,6 +112,11 @@ class NgeniusOrderCreated implements ObserverInterface
         $this->saveNgeniusOrder($order, $response);
     }
 
+    /**
+     * Check if the order is from the frontend
+     *
+     * @return bool
+     */
     private function isFrontendOrder(): bool
     {
         try {
@@ -96,13 +132,15 @@ class NgeniusOrderCreated implements ObserverInterface
     }
 
     /**
-     * @param $order
+     * Save Ngenius order
+     *
+     * @param Order $order
      * @param array $response
      *
      * @return void
      * @throws Exception
      */
-    private function saveNgeniusOrder($order, array $response): void
+    private function saveNgeniusOrder(Order $order, array $response): void
     {
         $data = [
             'reference' => $response['orderReference'],
@@ -117,6 +155,12 @@ class NgeniusOrderCreated implements ObserverInterface
 
         $model = $this->ngeniusCoreFactory->create();
         $model->addData($data);
-        $model->save();
+
+        try {
+            $this->ngeniusCoreRepository->save($model);
+        } catch (Exception $e) {
+            $this->logger->error('Error saving Ngenius order: ' . $e->getMessage());
+            throw new CouldNotSaveException(__('Unable to save Ngenius order.'));
+        }
     }
 }

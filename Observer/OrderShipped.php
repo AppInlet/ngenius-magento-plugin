@@ -31,7 +31,7 @@ class OrderShipped implements ObserverInterface
      *
      * @return void
      */
-    public function execute(Observer $observer)
+    public function execute(Observer $observer): void
     {
         $shipment = $observer->getEvent()->getShipment();
         $order    = $shipment->getOrder();

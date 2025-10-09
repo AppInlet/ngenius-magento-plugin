@@ -13,6 +13,8 @@ use NetworkInternational\NGenius\Controller\NGeniusOnline\Payment;
 use NetworkInternational\NGenius\Gateway\Config\Config;
 use NetworkInternational\NGenius\Model\CoreFactory;
 use Psr\Log\LoggerInterface;
+use Magento\Sales\Api\CreditmemoRepositoryInterface;
+use Magento\Sales\Api\InvoiceRepositoryInterface;
 
 class PurchaseRefund implements ObserverInterface
 {
@@ -93,6 +95,14 @@ class PurchaseRefund implements ObserverInterface
         'base_weee_tax_row_disposition',
     ];
     /**
+     * @var CreditmemoRepositoryInterface
+     */
+    private CreditmemoRepositoryInterface $creditmemoRepository;
+    /**
+     * @var InvoiceRepositoryInterface
+     */
+    private InvoiceRepositoryInterface $invoiceRepository;
+    /**
      * @var \Psr\Log\LoggerInterface
      */
     private LoggerInterface $logger;
@@ -114,23 +124,29 @@ class PurchaseRefund implements ObserverInterface
      * @param CoreFactory $coreFactory
      * @param Config $config
      * @param StoreManagerInterface $storeManager
+     * @param CreditmemoRepositoryInterface $creditmemoRepository
+     * @param InvoiceRepositoryInterface $invoiceRepository
      */
     public function __construct(
         LoggerInterface $logger,
         CoreFactory $coreFactory,
         Config $config,
-        StoreManagerInterface $storeManager
+        StoreManagerInterface $storeManager,
+        CreditmemoRepositoryInterface $creditmemoRepository,
+        InvoiceRepositoryInterface $invoiceRepository,
     ) {
-        $this->logger       = $logger;
-        $this->coreFactory  = $coreFactory;
-        $this->config       = $config;
-        $this->storeManager = $storeManager;
+        $this->logger               = $logger;
+        $this->coreFactory          = $coreFactory;
+        $this->config               = $config;
+        $this->storeManager         = $storeManager;
+        $this->creditmemoRepository = $creditmemoRepository;
+        $this->invoiceRepository    = $invoiceRepository;
     }
 
     /**
      * @inheritDoc
      */
-    public function execute(Observer $observer)
+    public function execute(Observer $observer): void
     {
         $data       = $observer->getData();
         $creditMemo = $data['creditmemo'];
@@ -146,8 +162,8 @@ class PurchaseRefund implements ObserverInterface
 
         $ptid       = str_replace("-capture", "", $parentTransactionId);
         $collection = $this->coreFactory->create()
-                                        ->getCollection()
-                                        ->addFieldToFilter('payment_id', $ptid);
+            ->getCollection()
+            ->addFieldToFilter('payment_id', $ptid);
 
         $orderItem  = $collection->getFirstItem();
         $itemStatus = $orderItem->getData('status') ?? "";
@@ -187,7 +203,7 @@ class PurchaseRefund implements ObserverInterface
             $creditMemo->setData($field, $invoice->getData($field));
         }
 
-        $creditMemo->save();
+        $this->creditmemoRepository = $creditmemoRepository;
     }
 
     /**
@@ -203,7 +219,7 @@ class PurchaseRefund implements ObserverInterface
     {
         $invoice->setBaseTotalRefunded($creditMemo->getBaseGrandTotal());
 
-        $invoice->save();
+        $this->invoiceRepository->save($invoice);
     }
 
     /**
@@ -232,12 +248,12 @@ class PurchaseRefund implements ObserverInterface
             foreach ($this->itemFields as $field) {
                 $creditMemoItem->setData($field, (float)$invoiceItem->getData($field));
             }
-            $creditMemoItem->save();
+            $this->creditmemoRepository->save($creditMemo);
             $creditMemoItems[$k] = $creditMemoItem;
         }
 
         $creditMemo->setData('items', $creditMemoItems);
-        $creditMemo->save();
+        $this->creditmemoRepository->save($creditMemo);
 
         $this->setOrderItemValues($creditMemoItems);
     }

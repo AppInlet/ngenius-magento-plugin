@@ -4,6 +4,7 @@ namespace NetworkInternational\NGenius\Gateway\Config;
 
 use Magento\Framework\App\Config\ScopeConfigInterface;
 use NetworkInternational\NGenius\Model\CoreFactory;
+use Magento\Framework\App\ResourceConnection;
 
 /**
  * NGenius config class to define the plugin's abilities
@@ -55,19 +56,28 @@ class Config extends \Magento\Payment\Gateway\Config\Config
     private CoreFactory $coreFactory;
 
     /**
+     * @var ResourceConnection
+     */
+
+    private ResourceConnection $resourceConnection;
+
+    /**
      * @param ScopeConfigInterface $scopeConfig
      * @param CoreFactory $coreFactory
+     * @param ResourceConnection $resourceConnection
      * @param string $pathPattern
      * @param ?string $methodCode
      */
     public function __construct(
         ScopeConfigInterface $scopeConfig,
         CoreFactory $coreFactory,
+        ResourceConnection $resourceConnection,
         string $pathPattern = \Magento\Payment\Gateway\Config\Config::DEFAULT_PATH_PATTERN,
         ?string $methodCode = null,
     ) {
         \Magento\Payment\Gateway\Config\Config::__construct($scopeConfig, $methodCode, $pathPattern);
-        $this->coreFactory = $coreFactory;
+        $this->coreFactory        = $coreFactory;
+        $this->resourceConnection = $resourceConnection;
     }
 
     /**
@@ -77,7 +87,7 @@ class Config extends \Magento\Payment\Gateway\Config\Config
      *
      * @return bool
      */
-    public function isActive($storeId = null)
+    public function isActive(?int $storeId = null): bool
     {
         return (bool)$this->getValue(Config::ACTIVE, $storeId);
     }
@@ -101,7 +111,7 @@ class Config extends \Magento\Payment\Gateway\Config\Config
      *
      * @return bool
      */
-    public function isComplete($storeId = null)
+    public function isComplete(?int $storeId = null): bool
     {
         $complete = false;
         if (!empty($this->getApiKey($storeId)) && !empty($this->getOutletReferenceId($storeId))) {
@@ -118,7 +128,7 @@ class Config extends \Magento\Payment\Gateway\Config\Config
      *
      * @return string
      */
-    public function getApiKey($storeId = null)
+    public function getApiKey(?int $storeId = null): string
     {
         return $this->getValue(Config::API_KEY, $storeId);
     }
@@ -142,7 +152,7 @@ class Config extends \Magento\Payment\Gateway\Config\Config
      *
      * @return string
      */
-    public function getTokenRequestURL($storeId = null)
+    public function getTokenRequestURL(?int $storeId = null): string
     {
         return $this->getApiUrl($storeId) . self::TOKEN_ENDPOINT;
     }
@@ -154,11 +164,11 @@ class Config extends \Magento\Payment\Gateway\Config\Config
      *
      * @return string
      */
-    public function getApiUrl($storeId = null)
+    public function getApiUrl(?int $storeId = null): string
     {
         $value = Config::UAT_API_URL;
 
-        if ($this->getEnvironment($storeId) == "live") {
+        if ($this->getEnvironment($storeId) === "live") {
             $value = Config::LIVE_API_URL;
         }
 
@@ -172,7 +182,7 @@ class Config extends \Magento\Payment\Gateway\Config\Config
      *
      * @return string
      */
-    public function getEnvironment($storeId = null)
+    public function getEnvironment(?int $storeId = null): string
     {
         return $this->getValue(Config::ENVIRONMENT, $storeId);
     }
@@ -184,7 +194,7 @@ class Config extends \Magento\Payment\Gateway\Config\Config
      *
      * @return string
      */
-    public function getInitialOrderStatus($storeId = null)
+    public function getInitialOrderStatus(?int $storeId = null): string
     {
         return $this->getValue(self::INITIAL_ORDER_STATUS, $storeId);
     }
@@ -240,7 +250,7 @@ class Config extends \Magento\Payment\Gateway\Config\Config
      *
      * @return string
      */
-    public function getPayByLinkUrl(?int $storeId, string $action, string $currencyCode)
+    public function getPayByLinkUrl(?int $storeId, string $action, string $currencyCode): string
     {
         $outlet2ReferenceId         = $this->getValue(self::OUTLET_REF_2, $storeId);
         $outlet2ReferenceCurrencies = $this->getValue(self::OUTLET_REF_2_CURRENCIES, $storeId) ?? '';
@@ -290,12 +300,16 @@ class Config extends \Magento\Payment\Gateway\Config\Config
      */
     private function getTrueOutletReferenceId(string $orderRef, ?int $storeId): string
     {
-        $collection   = $this->coreFactory->create()->getCollection()->addFieldToFilter(
-            'reference',
-            $orderRef
-        );
-        $orderItem    = $collection->getFirstItem();
-        $currencyCode = $orderItem->getDataByKey('currency');
+        $connection = $this->resourceConnection->getConnection();
+        $tableName  = $this->resourceConnection->getTableName('ngenius_networkinternational_sales_order');
+
+        $select = $connection->select()
+            ->from($tableName, ['currency'])
+            ->where('reference = ?', $orderRef)
+            ->limit(1);
+
+        $orderData    = $connection->fetchRow($select);
+        $currencyCode = $orderData['currency'] ?? '';
 
         $outlet2ReferenceId         = $this->getValue(self::OUTLET_REF_2, $storeId);
         $outlet2ReferenceCurrencies = $this->getValue(self::OUTLET_REF_2_CURRENCIES, $storeId) ?? '';
@@ -317,7 +331,7 @@ class Config extends \Magento\Payment\Gateway\Config\Config
      *
      * @return string
      */
-    public function isDebugOn($storeId = null)
+    public function isDebugOn(?int $storeId = null): bool
     {
         return (bool)$this->getValue(Config::DEBUG, $storeId);
     }
@@ -329,7 +343,7 @@ class Config extends \Magento\Payment\Gateway\Config\Config
      *
      * @return string
      */
-    public function isDebugCron($storeId = null)
+    public function isDebugCron(?int $storeId = null): bool
     {
         return (bool)$this->getValue(Config::DEBUG_CRON, $storeId);
     }
@@ -343,7 +357,7 @@ class Config extends \Magento\Payment\Gateway\Config\Config
      *
      * @return string
      */
-    public function getOrderCaptureURL(string $orderRef, string $paymentRef, ?int $storeId = null)
+    public function getOrderCaptureURL(string $orderRef, string $paymentRef, ?int $storeId = null): string
     {
         $endpoint = sprintf(
             $this->getValue(Config::CAPTURE_ENDPOINT, $storeId),

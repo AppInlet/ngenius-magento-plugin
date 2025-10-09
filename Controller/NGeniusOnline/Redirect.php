@@ -15,6 +15,7 @@ use Magento\Quote\Api\CartRepositoryInterface;
 use Magento\Sales\Model\Order;
 use NetworkInternational\NGenius\Block\Ngenius;
 use NetworkInternational\NGenius\Gateway\Config\Config;
+use Magento\Sales\Api\OrderRepositoryInterface;
 
 /**
  * Class Redirect
@@ -24,16 +25,20 @@ use NetworkInternational\NGenius\Gateway\Config\Config;
 class Redirect implements HttpGetActionInterface
 {
     protected const CARTPATH = "checkout/cart";
-
+    /**
+     * @var OrderRepositoryInterface
+     * Repository for managing order entities.
+     */
+    private OrderRepositoryInterface $orderRepository;
     /**
      * @var ResultFactory
      */
-    protected $resultRedirect;
+    protected ResultFactory $resultRedirect;
 
     /**
      * @var Session
      */
-    protected $checkoutSession;
+    protected Session $checkoutSession;
 
     /**
      * @var LayoutFactory
@@ -59,13 +64,14 @@ class Redirect implements HttpGetActionInterface
     /**
      * Redirect constructor.
      *
-     * @param ResultFactory $resultRedirect
-     * @param Session $checkoutSession
-     * @param LayoutFactory $layoutFactory
-     * @param CartRepositoryInterface $quoteRepository
-     * @param ManagerInterface $messageManager
-     * @param ScopeConfigInterface $scopeConfig
-     * @param Config $config
+     * @param ResultFactory $resultRedirect Factory for creating result instances.
+     * @param Session $checkoutSession Checkout session model.
+     * @param LayoutFactory $layoutFactory Factory for creating layout instances.
+     * @param CartRepositoryInterface $quoteRepository Repository for managing cart quotes.
+     * @param ManagerInterface $messageManager Interface for managing messages.
+     * @param ScopeConfigInterface $scopeConfig Interface for accessing scope configuration.
+     * @param Config $config Configuration for NGenius payment gateway.
+     * @param OrderRepositoryInterface $orderRepository Repository for managing order entities.
      */
     public function __construct(
         ResultFactory $resultRedirect,
@@ -75,6 +81,7 @@ class Redirect implements HttpGetActionInterface
         ManagerInterface $messageManager,
         ScopeConfigInterface $scopeConfig,
         Config $config,
+        OrderRepositoryInterface $orderRepository,
     ) {
         $this->resultRedirect  = $resultRedirect;
         $this->checkoutSession = $checkoutSession;
@@ -83,6 +90,7 @@ class Redirect implements HttpGetActionInterface
         $this->messageManager  = $messageManager;
         $this->scopeConfig     = $scopeConfig;
         $this->config          = $config;
+        $this->orderRepository = $orderRepository;
     }
 
     /**
@@ -91,7 +99,7 @@ class Redirect implements HttpGetActionInterface
      * @return ResultInterface
      * @throws NoSuchEntityException
      */
-    public function execute()
+    public function execute(): ResultInterface
     {
         $order = $this->checkoutSession->getLastRealOrder();
 
@@ -112,10 +120,9 @@ class Redirect implements HttpGetActionInterface
         $order                 = $this->checkoutSession->getLastRealOrder();
         $order->setState($initialStatus);
         $order->setStatus($initialStatus);
-        $order->addStatusHistoryComment(
+        $order->addCommentToStatusHistory(
             __('Set configured "Status of new order".')
         );
-        $order->save();
         if (isset($url['url'])) {
             $resultRedirectFactory->setUrl($url['url']);
         } else {
@@ -126,7 +133,7 @@ class Redirect implements HttpGetActionInterface
             $order->addCommentToStatusHistory($exception->getMessage());
             $order->setStatus('ngenius_failed');
             $order->setState(Order::STATE_CLOSED);
-            $order->save();
+            $this->orderRepository->save($order);
             $this->restoreQuote();
         }
 

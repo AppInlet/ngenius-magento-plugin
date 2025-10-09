@@ -3,6 +3,7 @@
 namespace NetworkInternational\NGenius\Controller\NGeniusOnline;
 
 use Exception;
+use Magento\Framework\DataObject;
 use Magento\Catalog\Model\Product;
 use Magento\Checkout\Helper\Data;
 use Magento\Checkout\Model\Session;
@@ -66,98 +67,98 @@ class Payment implements HttpGetActionInterface
     /**
      * @var Config
      */
-    protected $config;
+    protected Config $config;
 
     /**
      * @var TokenRequest
      */
-    protected $tokenRequest;
+    protected TokenRequest $tokenRequest;
 
     /**
      * @var StoreManagerInterface
      */
-    protected $storeManager;
+    protected StoreManagerInterface $storeManager;
 
     /**
      * @var TransferFactory
      */
-    protected $transferFactory;
+    protected TransferFactory $transferFactory;
 
     /**
      * @var TransactionFetch
      */
-    protected $transaction;
+    protected TransactionFetch $transaction;
 
     /**
      * @var CoreFactory
      */
-    protected $coreFactory;
+    protected CoreFactory $coreFactory;
 
     /**
      * @var BuilderInterface
      */
-    protected $transactionBuilder;
+    protected BuilderInterface $transactionBuilder;
 
     /**
      * @var ResultFactory
      */
-    protected $resultRedirect;
+    protected ResultFactory $resultRedirect;
 
     /**
      * @var error flag
      */
-    protected $error = null;
+    protected ?string $error = null;
 
     /**
      * @var InvoiceService
      */
-    protected $invoiceService;
+    protected InvoiceService $invoiceService;
 
     /**
      * @var TransactionFactory
      */
-    protected $transactionFactory;
+    protected TransactionFactory $transactionFactory;
 
     /**
      * @var InvoiceSender
      */
-    protected $invoiceSender;
+    protected InvoiceSender $invoiceSender;
 
     /**
      * @var DataPatch::getStatuses()
      */
-    protected $orderStatus;
+    protected array $orderStatus;
 
     /**
      * @var string
      */
-    protected $ngeniusState;
+    protected ?string $ngeniusState;
 
     /**
      * @var OrderSender
      */
-    protected $orderSender;
+    protected OrderSender $orderSender;
 
     /**
      * @var OrderFactory
      */
-    protected $orderFactory;
+    protected OrderFactory $orderFactory;
 
     /**
      * @var LoggerInterface
      */
-    protected $logger;
+    protected LoggerInterface $logger;
 
     /**
      * @var Session
      */
-    protected $checkoutSession;
+    protected Session $checkoutSession;
 
     /**
      *
      * @var ProductRepository
      */
-    protected $productRepository;
+    protected ProductRepository $productRepository;
 
     /**
      * @var RequestInterface
@@ -181,10 +182,6 @@ class Payment implements HttpGetActionInterface
      */
     protected Data $checkoutHelper;
     /**
-     * @var Builder
-     */
-    protected Builder $_transactionBuilder;
-    /**
      * @var OrderRepositoryInterface
      */
     protected OrderRepositoryInterface $orderRepository;
@@ -196,7 +193,14 @@ class Payment implements HttpGetActionInterface
      * @var string
      */
     private string $errorMessage = 'There is an error with the payment';
+
+    /**
+     * @var OrderStatusService
+     */
     private OrderStatusService $orderStatusService;
+    /**
+     * @var NgeniusApiService
+     */
     private NgeniusApiService $ngeniusApiService;
 
     /**
@@ -223,9 +227,9 @@ class Payment implements HttpGetActionInterface
      * @param Session $checkoutSession
      * @param Product $productCollection
      * @param SerializerInterface $serializer
-     * @param Builder $_transactionBuilder
      * @param OrderRepositoryInterface $orderRepository
      * @param OrderStatusService $orderStatusService
+     * @param NgeniusApiService $ngeniusApiService
      */
     public function __construct(
         ManagerInterface $messageManager,
@@ -249,52 +253,50 @@ class Payment implements HttpGetActionInterface
         Session $checkoutSession,
         Product $productCollection,
         SerializerInterface $serializer,
-        Builder $_transactionBuilder,
         OrderRepositoryInterface $orderRepository,
         OrderStatusService $orderStatusService,
-        NgeniusApiService $ngeniusApiService,
+        NgeniusApiService $ngeniusApiService
     ) {
-        $this->request             = $request;
-        $this->checkoutHelper      = $checkoutHelper;
-        $this->pageFactory         = $pageFactory;
-        $this->messageManager      = $messageManager;
-        $this->config              = $config;
-        $this->tokenRequest        = $tokenRequest;
-        $this->storeManager        = $storeManager;
-        $this->transferFactory     = $transferFactory;
-        $this->transaction         = $transaction;
-        $this->coreFactory         = $coreFactory;
-        $this->transactionBuilder  = $transactionBuilder;
-        $this->resultRedirect      = $resultRedirect;
-        $this->invoiceService      = $invoiceService;
-        $this->transactionFactory  = $transactionFactory;
-        $this->invoiceSender       = $invoiceSender;
-        $this->orderSender         = $orderSender;
-        $this->orderFactory        = $orderFactory;
-        $this->logger              = $logger;
-        $this->orderStatus         = DataPatch::getStatuses();
-        $this->checkoutSession     = $checkoutSession;
-        $this->productCollection   = $productCollection;
-        $this->serializer          = $serializer;
-        $this->_transactionBuilder = $_transactionBuilder;
-        $this->orderRepository     = $orderRepository;
-        $this->orderStatusService  = $orderStatusService;
-        $this->ngeniusApiService = $ngeniusApiService;
+        $this->request            = $request;
+        $this->checkoutHelper     = $checkoutHelper;
+        $this->pageFactory        = $pageFactory;
+        $this->messageManager     = $messageManager;
+        $this->config             = $config;
+        $this->tokenRequest       = $tokenRequest;
+        $this->storeManager       = $storeManager;
+        $this->transferFactory    = $transferFactory;
+        $this->transaction        = $transaction;
+        $this->coreFactory        = $coreFactory;
+        $this->transactionBuilder = $transactionBuilder;
+        $this->resultRedirect     = $resultRedirect;
+        $this->invoiceService     = $invoiceService;
+        $this->transactionFactory = $transactionFactory;
+        $this->invoiceSender      = $invoiceSender;
+        $this->orderSender        = $orderSender;
+        $this->orderFactory       = $orderFactory;
+        $this->logger             = $logger;
+        $this->orderStatus        = DataPatch::getStatuses();
+        $this->checkoutSession    = $checkoutSession;
+        $this->productCollection  = $productCollection;
+        $this->serializer         = $serializer;
+        $this->orderRepository    = $orderRepository;
+        $this->orderStatusService = $orderStatusService;
+        $this->ngeniusApiService  = $ngeniusApiService;
     }
 
     /**
      * Default execute function.
      *
-     * @return URL
+     * @return mixed
      */
-    public function execute()
+    public function execute(): mixed
     {
         $resultRedirectFactory = $this->resultRedirect->create(ResultFactory::TYPE_REDIRECT);
 
         $storeId = $this->storeManager->getStore()->getId();
 
         if ($this->config->isDebugCron($storeId)) {
-            $this->messageManager->addError(
+            $this->messageManager->addErrorMessage(
                 __(
                     'This is a cron debugging test, the order is still in pending.'
                 )
@@ -305,38 +307,43 @@ class Payment implements HttpGetActionInterface
 
         $orderRef = $this->request->getParam('ref');
 
-        $orderItem = $this->fetchOrder('reference', $orderRef)->getFirstItem();
+        $orderItems = $this->fetchOrder('reference', $orderRef);
+        if (!empty($orderItems)) {
+            $orderItem = reset($orderItems);
 
-        if (!empty($orderItem->getPaymentId())) {
-            return $resultRedirectFactory->setPath('checkout/onepage/success');
-        }
-
-        if ($orderRef) {
-            $result = $this->ngeniusApiService->getResponseAPI($orderRef, $storeId);
-
-            $embedded = self::NGENIUS_EMBEDED;
-            if ($result && isset($result[$embedded]['payment']) && is_array($result[$embedded]['payment'])) {
-                $action = $result['action'] ?? '';
-
-                $apiProcessor = new ApiProcessor($result);
-                $apiProcessor->processPaymentAction($action, $this->ngeniusState);
-                $this->orderStatusService->processOrder($apiProcessor, $orderItem, $action);
-            }
-            if ($this->error) {
-                $this->messageManager->addError(
-                    __(
-                        'Failed! There is an issue with your payment transaction. '
-                        . $this->errorMessage
-                    )
-                );
-
-                return $resultRedirectFactory->setPath('checkout/cart');
-            } else {
+            if (!empty($orderItem['payment_id'])) {
                 return $resultRedirectFactory->setPath('checkout/onepage/success');
             }
-        } else {
-            return $resultRedirectFactory->setPath('checkout');
+
+            if ($orderRef) {
+                $result = $this->ngeniusApiService->getResponseAPI($orderRef, $storeId);
+
+                $embedded = self::NGENIUS_EMBEDED;
+                if ($result && isset($result[$embedded]['payment']) && is_array($result[$embedded]['payment'])) {
+                    $action = $result['action'] ?? '';
+
+                    $apiProcessor = new ApiProcessor($result);
+                    $apiProcessor->processPaymentAction($action, $this->ngeniusState);
+                    $orderItemObject = new DataObject($orderItem);
+                    $this->orderStatusService->processOrder($apiProcessor, $orderItemObject, $action);
+                }
+                if ($this->error) {
+                    $this->messageManager->addErrorMessage(
+                        __(
+                            'Failed! There is an issue with your payment transaction. '
+                            . $this->errorMessage
+                        )
+                    );
+
+                    return $resultRedirectFactory->setPath('checkout/cart');
+                } else {
+                    return $resultRedirectFactory->setPath('checkout/onepage/success');
+                }
+            } else {
+                return $resultRedirectFactory->setPath('checkout');
+            }
         }
+        return $resultRedirectFactory->setPath('checkout');
     }
 
     /**
@@ -345,11 +352,18 @@ class Payment implements HttpGetActionInterface
      * @param string $key
      * @param string $value
      *
-     * @return object
+     * @return array
      */
-    public function fetchOrder($key, $value)
+    public function fetchOrder(string $key, string $value): array
     {
-        return $this->coreFactory->create()->getCollection()->addFieldToFilter($key, $value);
+        $connection = $this->coreFactory->create()->getResource()->getConnection();
+        $tableName  = $connection->getTableName('ngenius_networkinternational_sales_order');
+
+        $select = $connection->select()
+            ->from($tableName)
+            ->where($key . ' = ?', $value);
+
+        return $connection->fetchAll($select);
     }
 
     /**
@@ -363,37 +377,51 @@ class Payment implements HttpGetActionInterface
     {
         if (isset($paymentResult['_id'])) {
             $paymentIdArr = explode(':', $paymentResult['_id']);
-
             return end($paymentIdArr);
         }
 
         return "";
     }
 
-
     /**
      * Cron Task.
      */
     public function cronTask(): void
     {
-        $orderItems = $this->fetchOrder('state', self::NGENIUS_STARTED)
-            ->addFieldToFilter('payment_id', null)
-            ->addFieldToFilter('created_at', ['lteq' => date('Y-m-d H:i:s', strtotime('-1 hour'))])
-            ->setOrder('nid', 'DESC');
+        $connection = $this->coreFactory->create()->getResource()->getConnection();
+        $tableName  = $connection->getTableName('ngenius_networkinternational_sales_order');
 
-        $pblOrderItems = $this->fetchOrder('state', $this->orderStatusService->getDefaultPBLState())
-            ->addFieldToFilter('payment_id', null)
-            ->addFieldToFilter('created_at', ['lteq' => date('Y-m-d H:i:s', strtotime('-1 hour'))])
-            ->setOrder('nid', 'DESC');
+        $startedOrdersSelect = $connection->select()
+            ->from($tableName)
+            ->where('state = ?', self::NGENIUS_STARTED)
+            ->where('created_at <= ?', date('Y-m-d H:i:s', strtotime('-1 hour')))
+            ->order('nid DESC');
 
-        if ($orderItems->getItems()) {
-            $this->logger->info("N-GENIUS: Found " . count($orderItems->getItems()) . " unprocessed normal order(s)");
-            $this->orderStatusService->processNormalOrders($orderItems->getItems());
+        $orderRows = $connection->fetchAll($startedOrdersSelect);
+
+        $pblOrdersSelect = $connection->select()
+            ->from($tableName)
+            ->where('state = ?', $this->orderStatusService->getDefaultPBLState())
+            ->where('created_at <= ?', date('Y-m-d H:i:s', strtotime('-1 hour')))
+            ->order('nid DESC');
+
+        $pblOrderRows = $connection->fetchAll($pblOrdersSelect);
+
+        $orderItems    = array_map(fn($row) => new \Magento\Framework\DataObject($row), $orderRows);
+        $pblOrderItems = array_map(fn($row) => new \Magento\Framework\DataObject($row), $pblOrderRows);
+
+        if (!empty($orderItems)) {
+            $this->logger->info("N-GENIUS: Found " . count($orderItems) . " unprocessed normal order(s)");
+            $this->orderStatusService->processNormalOrders($orderItems);
+        } else {
+            $this->logger->info("N-GENIUS: No normal orders found for cron");
         }
 
-        if ($pblOrderItems->getItems()) {
-            $this->logger->info("N-GENIUS: Found " . count($pblOrderItems->getItems()) . " unprocessed PBL order(s)");
-            $this->orderStatusService->processPBLOrders($pblOrderItems->getItems());
+        if (!empty($pblOrderItems)) {
+            $this->logger->info("N-GENIUS: Found " . count($pblOrderItems) . " unprocessed PBL order(s)");
+            $this->orderStatusService->processPBLOrders($pblOrderItems);
+        } else {
+            $this->logger->info("N-GENIUS: No PBL orders found for cron");
         }
     }
 }

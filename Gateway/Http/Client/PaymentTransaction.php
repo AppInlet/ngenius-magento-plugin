@@ -128,24 +128,26 @@ class PaymentTransaction implements ClientInterface
     {
         $response = json_decode($responseEnc);
         if (isset($response->_links->payment->href)) {
-            $data = $this->checkoutSession->getData();
+            $sessionData = $this->checkoutSession->getData();
 
-            $amount = $response->amount->value;
-
+            $amount       = $response->amount->value;
             $currencyCode = $response->amount->currencyCode;
 
-            $data['reference'] = $response->reference ?? '';
-            $data['action']    = $response->action ?? '';
-            $data['amount']    = ValueFormatter::intToFloatRepresentation($currencyCode, $amount);
-            $data['state']     = $response->_embedded->payment[0]->state ?? '';
-            $data['status']    = $this->orderStatus[0]['status'];
-            $data['order_id']  = $data['last_real_order_id'];
-            $data['entity_id'] = $data['last_order_id'];
-            $data['currency']  = $response->amount->currencyCode;
+            $data = [
+                'reference' => $response->reference ?? '',
+                'action'    => $response->action ?? '',
+                'amount'    => ValueFormatter::intToFloatRepresentation($currencyCode, $amount),
+                'state'     => $response->_embedded->payment[0]->state ?? '',
+                'status'    => $this->orderStatus[0]['status'],
+                'order_id'  => $sessionData['last_real_order_id'],
+                'entity_id' => $sessionData['last_order_id'],
+                'currency'  => $response->amount->currencyCode,
+            ];
 
-            $model = $this->coreFactory->create();
-            $model->addData($data);
-            $model->save();
+            $connection = $this->coreFactory->create()->getResource()->getConnection();
+            $tableName  = $connection->getTableName('ngenius_networkinternational_sales_order');
+
+            $connection->insert($tableName, $data);
 
             $this->checkoutSession->setPaymentURL($response->_links->payment->href);
 

@@ -30,7 +30,7 @@ class DataPatch implements DataPatchInterface
      *
      * @return array|string[]
      */
-    public static function getDependencies()
+    public static function getDependencies(): array
     {
         return [];
     }
@@ -40,7 +40,7 @@ class DataPatch implements DataPatchInterface
      *
      * @return void
      */
-    public function apply()
+    public function apply(): void
     {
         $this->moduleDataSetup->startSetup();
 
@@ -48,8 +48,8 @@ class DataPatch implements DataPatchInterface
 
         $checkExistingStatus1 = $this->moduleDataSetup->getConnection()->fetchOne(
             $this->moduleDataSetup->getConnection()->select()
-                                  ->from($table)
-                                  ->where('status = ?', 'ngenius_pending')
+                ->from($table)
+                ->where('status = ?', 'ngenius_pending')
         );
 
         if (!$checkExistingStatus1) {
@@ -58,8 +58,8 @@ class DataPatch implements DataPatchInterface
 
         $checkExistingStatus2 = $this->moduleDataSetup->getConnection()->fetchOne(
             $this->moduleDataSetup->getConnection()->select()
-                                  ->from($table)
-                                  ->where('status = ?', 'ngenius_declined')
+                ->from($table)
+                ->where('status = ?', 'ngenius_declined')
         );
 
         if (!$checkExistingStatus2) {
@@ -100,11 +100,11 @@ class DataPatch implements DataPatchInterface
     {
         // Add code from the DataPatch class
         $this->moduleDataSetup->getConnection()
-                              ->insertArray(
-                                  $this->moduleDataSetup->getTable('sales_order_status'),
-                                  ['status', 'label'],
-                                  $this->getStatuses()
-                              );
+            ->insertArray(
+                $this->moduleDataSetup->getTable('sales_order_status'),
+                ['status', 'label'],
+                $this->getStatuses()
+            );
 
         $state[] = ['ngenius_pending', self::STATE, '1', '1'];
         $state[] = ['ngenius_processing', self::STATE, '0', '1'];
@@ -119,11 +119,11 @@ class DataPatch implements DataPatchInterface
         $state[] = ['ngenius_declined', self::STATE, '0', '1'];
 
         $this->moduleDataSetup->getConnection()
-                              ->insertArray(
-                                  $this->moduleDataSetup->getTable('sales_order_status_state'),
-                                  ['status', 'state', 'is_default', 'visible_on_front'],
-                                  $state
-                              );
+            ->insertArray(
+                $this->moduleDataSetup->getTable('sales_order_status_state'),
+                ['status', 'state', 'is_default', 'visible_on_front'],
+                $state
+            );
     }
 
     /**
@@ -141,7 +141,7 @@ class DataPatch implements DataPatchInterface
      *
      * @return array|string[]
      */
-    public function getAliases()
+    public function getAliases(): array
     {
         return [];
     }

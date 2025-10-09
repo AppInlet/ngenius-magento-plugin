@@ -17,17 +17,17 @@ class VoidRequest implements BuilderInterface
     /**
      * @var Config
      */
-    protected $config;
+    protected Config $config;
 
     /**
      * @var TokenRequest
      */
-    protected $tokenRequest;
+    protected TokenRequest $tokenRequest;
 
     /**
      * @var StoreManagerInterface
      */
-    protected $storeManager;
+    protected StoreManagerInterface $storeManager;
 
     /**
      * VoidRequest constructor.
@@ -54,7 +54,7 @@ class VoidRequest implements BuilderInterface
      * @return array
      * @throws LocalizedException
      */
-    public function build(array $buildSubject)
+    public function build(array $buildSubject): array
     {
         $paymentDO = SubjectReader::readPayment($buildSubject);
         $payment   = $paymentDO->getPayment();

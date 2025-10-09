@@ -12,8 +12,6 @@ use NetworkInternational\NGenius\Model\ResourceModel\Core as ResourceCore;
  */
 class Core extends AbstractModel
 {
-    // phpcs:disable PSR2.Methods.MethodDeclaration.Underscore
-
     /**
      * Initialize
      */

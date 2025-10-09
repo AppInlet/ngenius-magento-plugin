@@ -17,7 +17,7 @@ class TransferFactory implements TransferFactoryInterface
     /**
      * @var TransferBuilder
      */
-    private $transferBuilder;
+    private TransferBuilder $transferBuilder;
 
     /**
      * @param TransferBuilder $transferBuilder

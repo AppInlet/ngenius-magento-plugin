@@ -11,8 +11,6 @@ use Magento\Framework\Model\ResourceModel\Db\AbstractDb;
  */
 class Core extends AbstractDb
 {
-    // phpcs:disable PSR2.Methods.MethodDeclaration.Underscore
-
     /**
      * Initialize resource model
      *

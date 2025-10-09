@@ -8,49 +8,58 @@ use Magento\Payment\Gateway\Validator\ResultInterface;
 use Magento\Payment\Gateway\Validator\ResultInterfaceFactory;
 use Magento\Sales\Model\Order\Payment\Transaction\BuilderInterface;
 use Magento\Sales\Model\OrderFactory;
+use Magento\Sales\Api\OrderRepositoryInterface;
 
 /**
- * Validate and processes voided order
- *
  * Class VoidValidator
+ *
+ * Validates and processes voided orders.
  */
 class VoidValidator extends AbstractValidator
 {
     /**
-     * @var BuilderInterface
+     * @var OrderRepositoryInterface The order repository instance.
      */
-    protected $transactionBuilder;
+    private OrderRepositoryInterface $orderRepository;
 
     /**
-     * @var OrderFactory
+     * @var BuilderInterface The transaction builder instance.
      */
-    protected $orderFactory;
+    protected BuilderInterface $transactionBuilder;
+
+    /**
+     * @var OrderFactory The order factory instance.
+     */
+    protected OrderFactory $orderFactory;
 
     /**
      * VoidValidator constructor.
      *
-     * @param ResultInterfaceFactory $resultFactory
-     * @param BuilderInterface $transactionBuilder
-     * @param OrderFactory $orderFactory
+     * @param ResultInterfaceFactory $resultFactory The result factory instance.
+     * @param BuilderInterface $transactionBuilder The transaction builder instance.
+     * @param OrderFactory $orderFactory The order factory instance.
+     * @param OrderRepositoryInterface $orderRepository The order repository instance.
      */
     public function __construct(
         ResultInterfaceFactory $resultFactory,
         BuilderInterface $transactionBuilder,
-        OrderFactory $orderFactory
+        OrderFactory $orderFactory,
+        OrderRepositoryInterface $orderRepository
     ) {
         $this->transactionBuilder = $transactionBuilder;
         $this->orderFactory       = $orderFactory;
+        $this->orderRepository    = $orderRepository;
         parent::__construct($resultFactory);
     }
 
     /**
-     * Performs validation of result code
+     * Performs validation of the result code.
      *
-     * @param array $validationSubject
+     * @param array $validationSubject The validation subject.
      *
-     * @return ResultInterface|null
+     * @return ResultInterface|null The validation result.
      */
-    public function validate(array $validationSubject)
+    public function validate(array $validationSubject): ?ResultInterface
     {
         try {
             if (!empty($validationSubject)) {
@@ -58,23 +67,23 @@ class VoidValidator extends AbstractValidator
                 $paymentDO    = SubjectReader::readPayment($validationSubject);
                 $orderAdapter = $paymentDO->getOrder();
 
-                $order = $this->orderFactory->create()->load($orderAdapter->getId());
+                $order = $this->orderRepository->get($orderAdapter->getId());
 
-                if (!isset($response['result']) && !is_array($response['result'])) {
+                if (!isset($response['result']) || !is_array($response['result'])) {
                     return $this->createResult(
                         false,
                         [__('Invalid void transaction.')]
                     );
-                } else {
-                    $order->addStatusToHistory(
-                        $response['result']['order_status'],
-                        'The authorization has been reversed successfully.',
-                        false
-                    );
-                    $order->save();
-
-                    return $this->createResult(true, []);
                 }
+
+                $order->addStatusToHistory(
+                    $response['result']['order_status'],
+                    __('The authorization has been reversed successfully.'),
+                    false
+                );
+                $this->orderRepository->save($order);
+
+                return $this->createResult(true, []);
             }
         } catch (\Exception $ex) {
             return $this->createResult(

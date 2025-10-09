@@ -20,19 +20,19 @@ class TokenRequest
     /**
      * @var TransferFactory
      */
-    protected $transferFactory;
+    protected TransferFactory $transferFactory;
     /**
      * @var ManagerInterface
      */
-    protected $messageManager;
+    protected ManagerInterface $messageManager;
     /**
      * @var Config
      */
-    private $config;
+    private Config $config;
     /**
      * @var Logger
      */
-    private $logger;
+    private Logger $logger;
 
     /**
      * TokenRequest constructor.
@@ -63,7 +63,7 @@ class TokenRequest
      * @return string
      * @throws CouldNotSaveException
      */
-    public function getAccessToken($storeId = null)
+    public function getAccessToken(?int $storeId = null): string
     {
         $url = $this->config->getTokenRequestURL($storeId);
         $key = $this->config->getApiKey($storeId);
