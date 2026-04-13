@@ -45,16 +45,19 @@ class OrderAuthCaptured implements ObserverInterface
             $orderRef
         );
         $orderItem  = $collection->getFirstItem();
+        $orderData  = $orderItem->getData();
 
-        if ($orderItem->getData()["action"] !== "AUTH"
-            || (int)($orderItem->getData()["captured_amt"]) === 0
+        if (empty($orderData)
+            || !isset($orderData["action"])
+            || $orderData["action"] !== "AUTH"
+            || (int)($orderData["captured_amt"] ?? 0) === 0
         ) {
             return;
         }
 
-        if ($order->canShip()) {
-            $order->setState($orderItem->getData()["state"]);
-            $order->setStatus($orderItem->getData()["status"]);
+        if ($order->canShip() && isset($orderData["state"]) && isset($orderData["status"])) {
+            $order->setState($orderData["state"]);
+            $order->setStatus($orderData["status"]);
             $order->save();
         }
     }

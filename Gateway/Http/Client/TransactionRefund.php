@@ -61,19 +61,21 @@ class TransactionRefund extends PaymentTransaction
             $state = $responseArray['state'] ?? '';
 
             if ($state === 'REVERSED') {
-                $capturedAmount = $orderItem->getData('captured_amt');
+                $capturedAmount = (float)$orderItem->getData('captured_amt');
                 $orderItem->addData(['REVERSED' => 'REVERSED']);
             }
 
-            if ($capturedAmount == 0) {
+            $originalCapturedAmount = (float)$orderItem->getData('captured_amt');
+
+            if ($totalRefunded <= 0) {
                 $orderStatus = $this->orderStatus[7]['status'];
-                $orderItem->setCaptureAmt(0);
-            } elseif ($capturedAmount === $totalRefunded) {
+                $orderItem->setCapturedAmt($originalCapturedAmount);
+            } elseif ($totalRefunded >= $originalCapturedAmount) {
                 $orderStatus = $this->orderStatus[7]['status'];
-                $orderItem->setCapturedAmt(($capturedAmount - $totalRefunded));
+                $orderItem->setCapturedAmt(0);
             } else {
                 $orderStatus = $this->orderStatus[8]['status'];
-                $orderItem->setCapturedAmt(($capturedAmount - $totalRefunded));
+                $orderItem->setCapturedAmt($originalCapturedAmount - $totalRefunded);
             }
 
             $orderItem->setState(DataPatch::STATE);

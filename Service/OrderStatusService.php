@@ -273,6 +273,29 @@ class OrderStatusService
 
             $orderItem->setData('state', 'cron');
             $orderItem->setData('status', 'cron');
+            // Direct DB update for state/status
+            $connection = $this->resourceConnection->getConnection();
+            $tableName  = $connection->getTableName('ngenius_networkinternational_sales_order');
+            $nid        = null;
+            if (method_exists($orderItem, 'getNid')) {
+                $nid = $orderItem->getNid();
+            }
+            if (!$nid && method_exists($orderItem, 'getData')) {
+                $nid = $orderItem->getData('nid');
+            }
+            if (!$nid && property_exists($orderItem, 'nid')) {
+                $nid = $orderItem->nid;
+            }
+            if ($nid) {
+                $updateData = [
+                    'state'  => 'cron',
+                    'status' => 'cron',
+                ];
+                $where      = $connection->quoteInto('nid = ?', $nid);
+                $connection->update($tableName, $updateData, $where);
+            } else {
+                $this->logger->error("N-GENIUS: processNormalOrders missing nid for direct DB update");
+            }
 
             $orderRef    = (string)($orderItem->getData('reference') ?? $orderItem->getReference());
             $incrementId = (string)($orderItem->getData('order_id') ?? $orderItem->getOrderId());
@@ -312,7 +335,9 @@ class OrderStatusService
                         ],
                         true
                     )) {
-                        $this->ngeniusState = self::NGENIUS_FAILED;
+                        $this->setNgeniusState(self::NGENIUS_FAILED);
+                    } else {
+                        $this->setNgeniusState($paymentState);
                     }
 
                     $this->processOrder($apiProcessor, $orderItem, $action);
@@ -435,7 +460,7 @@ class OrderStatusService
                 $dataTable['captured_amt'] = $this->orderSale($order, $paymentResult, $paymentId);
             }
             $dataTable['status'] = $order->getStatus();
-        } elseif ($this->ngeniusState === self::NGENIUS_STARTED) {
+        } elseif ($this->ngeniusState === self::NGENIUS_STARTED || $this->ngeniusState === self::NGENIUS_AWAIT3DS) {
             $dataTable['status'] = Order::STATE_PENDING_PAYMENT;
         } else {
             // Authorisation has failed - cancel order
@@ -665,18 +690,36 @@ class OrderStatusService
             return;
         }
 
-        $paymentId          = $apiProcessor->getPaymentId();
-        $paymentResult      = $apiProcessor->getPaymentResult();
-        $this->ngeniusState = strtoupper($paymentResult['state'] ?? '');
+        $paymentId = $apiProcessor->getPaymentId();
 
         $order   = $this->orderFactory->create()->loadByIncrementId($incrementId);
         $storeId = $order->getStoreId();
 
         if (!$order->getId()) {
-            $orderItem->setPaymentId($paymentId);
-            $orderItem->setState($this->ngeniusState);
-            $orderItem->setStatus($this->ngeniusState);
-            $orderItem->save();
+            // Update the DB directly since DataObject has no save()
+            $connection = $this->resourceConnection->getConnection();
+            $tableName  = $connection->getTableName('ngenius_networkinternational_sales_order');
+            $nid        = null;
+            if (method_exists($orderItem, 'getNid')) {
+                $nid = $orderItem->getNid();
+            }
+            if (!$nid && method_exists($orderItem, 'getData')) {
+                $nid = $orderItem->getData('nid');
+            }
+            if (!$nid && property_exists($orderItem, 'nid')) {
+                $nid = $orderItem->nid;
+            }
+            if ($nid) {
+                $updateData = [
+                    'payment_id' => $paymentId,
+                    'state'      => $this->ngeniusState,
+                    'status'     => $this->ngeniusState,
+                ];
+                $where      = $connection->quoteInto('nid = ?', $nid);
+                $connection->update($tableName, $updateData, $where);
+            } else {
+                $this->logger->error("N-GENIUS: processOrder missing nid for direct DB update");
+            }
             return;
         }
 
@@ -817,5 +860,36 @@ class OrderStatusService
             $this->logger->error("N-GENIUS: Failed to update table: " . $e->getMessage());
             return false;
         }
+    }
+
+    /**
+     * Gets the current N-Genius state.
+     *
+     * @return string|null
+     */
+    public function getNgeniusState(): ?string
+    {
+        return $this->ngeniusState ?? null;
+    }
+
+    /**
+     * Sets the N-Genius state.
+     *
+     * @param string $state
+     * @return void
+     */
+    public function setNgeniusState(string $state): void
+    {
+        $this->ngeniusState = $state;
+    }
+
+    /**
+     * Gets the error status of the API interaction.
+     *
+     * @return string|null The error status or null if not set.
+     */
+    public function getIsError(): ?string
+    {
+        return $this->error ?? null;
     }
 }

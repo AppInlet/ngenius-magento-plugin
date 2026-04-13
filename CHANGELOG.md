@@ -1,5 +1,30 @@
 # Changelog
 
+## [[1.4.1]](https://github.com/network-international/ngenius-magento-plugin/releases/tag/1.4.1)
+
+### Fixed
+
+- Partial refund processing logic to correctly distinguish between fully refunded and partially refunded transactions.
+  Refund status determination is now based on the original captured amount rather than remaining captured values,
+  ensuring partially refunded orders are no longer incorrectly marked as fully refunded.
+- Cron job configuration: Disabled separate process execution (`use_separate_process` changed from 1 to 0) to resolve
+  potential process isolation issues.
+- Error handling in Payment controller: Now checks error status from both `NgeniusApiService` and `OrderStatusService`
+  for more comprehensive error detection.
+- AWAIT3DS state handling: Included AWAIT3DS state in cron queries for started orders to properly process abandoned
+  orders awaiting 3DS authentication.
+- Order state persistence: Implemented direct database updates for order state/status in scenarios where DataObject
+  save methods are unavailable, ensuring state changes are properly recorded.
+- Observer safety checks: Added null/empty data validation in `OrderAuthCaptured` observer to prevent errors when
+  processing orders with missing or incomplete data.
+
+### Improved
+
+- State management: Added `getNgeniusState()` and `setNgeniusState()` methods to `NgeniusApiService` and
+  `OrderStatusService` for better state tracking and consistency across payment processing workflows.
+- Error detection: Added `getIsError()` methods to both API and order status services, providing standardized error
+  state access throughout the payment flow.
+
 ## [[1.4.0]](https://github.com/network-international/ngenius-magento-plugin/releases/tag/1.4.0)
 
 ### Added
