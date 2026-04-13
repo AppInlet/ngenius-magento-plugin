@@ -141,6 +141,16 @@ class NgeniusApiService
     }
 
     /**
+     * Gets the error status of the API interaction.
+     *
+     * @return string|null The error status or null if not set.
+     */
+    public function getIsError(): ?string
+    {
+        return $this->error ?? null;
+    }
+
+    /**
      * Validates the API result.
      *
      * @param array $result The API result to validate.
@@ -159,5 +169,26 @@ class NgeniusApiService
 
             return $result;
         }
+    }
+
+    /**
+     * Gets the current N-Genius state.
+     *
+     * @return string|null
+     */
+    public function getNgeniusState(): ?string
+    {
+        return $this->ngeniusState ?? null;
+    }
+
+    /**
+     * Sets the N-Genius state.
+     *
+     * @param string $state
+     * @return void
+     */
+    public function setNgeniusState(string $state): void
+    {
+        $this->ngeniusState = $state;
     }
 }

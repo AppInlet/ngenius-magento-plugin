@@ -323,11 +323,15 @@ class Payment implements HttpGetActionInterface
                     $action = $result['action'] ?? '';
 
                     $apiProcessor = new ApiProcessor($result);
-                    $apiProcessor->processPaymentAction($action, $this->ngeniusState);
+
+                    $ngeniusState = $this->ngeniusApiService->getNgeniusState();
+                    $apiProcessor->processPaymentAction($action, $ngeniusState);
+
                     $orderItemObject = new DataObject($orderItem);
+                    $this->orderStatusService->setNgeniusState($ngeniusState);
                     $this->orderStatusService->processOrder($apiProcessor, $orderItemObject, $action);
                 }
-                if ($this->error) {
+                if ($this->ngeniusApiService->getIsError() || $this->orderStatusService->getIsError()) {
                     $this->messageManager->addErrorMessage(
                         __(
                             'Failed! There is an issue with your payment transaction. '
@@ -393,7 +397,7 @@ class Payment implements HttpGetActionInterface
 
         $startedOrdersSelect = $connection->select()
             ->from($tableName)
-            ->where('state = ?', self::NGENIUS_STARTED)
+            ->where('state IN (?, ?)', [self::NGENIUS_STARTED, self::NGENIUS_AWAIT3DS])
             ->where('created_at <= ?', date('Y-m-d H:i:s', strtotime('-1 hour')))
             ->order('nid DESC');
 
